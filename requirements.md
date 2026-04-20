@@ -143,21 +143,65 @@ If vacation payout = **Yes**, additionally collect:
 |---|---|---|
 | What is the minimum that needs to be paid out? | `All Accrued` / Fixed number of days | `All Accrued` = full balance; otherwise admin enters a number |
 
-### 3.4 Eligibility — Condition Block (P1)
+### 3.4 Eligibility — Condition Block
 
-Each termination policy needs a condition block that defines which employees it applies to. This uses the same condition builder pattern available in Compliance 360 today.
+Each termination liability config needs a condition block that determines **which employees this rule applies to**. This is critical because a single country can have multiple termination configs — e.g., different rules for different contract types, employment models, or provinces.
 
-**Example:**
+The condition block uses the same condition builder pattern available in Compliance 360 today. It consists of:
 
-> **Include people who are**
+**Include criteria** — defines the population this rule covers:
+
+| Attribute | Description | Example values |
+|---|---|---|
+| Is an EOR Employee? | Whether the employee is employed through Rippling EOR | True / False |
+| Country | The employee's work country | PH, AU, GB, IN |
+| Contract Type | The type of employment contract | Indefinite, Fixed Term |
+| Employment Model | How the employee is engaged | Staff Augmentation, Consultant, Direct Hire |
+| Province / State | Sub-national region (where rules vary by region) | Ontario, Queensland, Bavaria |
+| Worker Category | The classification of the worker | Full-Time, Part-Time |
+
+**Exclude criteria** — carves out populations that should NOT be covered by this rule:
+
+| Attribute | Description | Example values |
+|---|---|---|
+| Worker Type | Excludes specific worker types | Contractors, Interns |
+| Specific Groups | Named groups to exclude | All - Contractors, All - Temps |
+
+#### How it works
+
+The admin builds conditions using AND/OR logic:
+
+1. **Include people who are** — one or more conditions that must all be true (AND logic)
+2. **Except** — one or more groups to exclude from the included population
+
+#### Example: Philippines EOR employees
+
+> **Include people who are:**
 >
-> Employee → Is an EOR Employee? is True
+> Employee → Is an EOR Employee? is `True`
+> AND Country is `PH`
+> AND Contract Type is `Indefinite`
 >
 > **Except:** All - Contractors
 
-This allows the admin to scope the policy to the right population — e.g., only EOR salaried employees in a specific country, excluding contractors or specific employment types.
+This rule would apply to all EOR employees in the Philippines on indefinite contracts, excluding anyone classified as a contractor.
 
-![Condition block example](/Users/sanjana/.cursor/projects/Users-sanjana-github-ml-service/assets/Screenshot_2026-04-20_at_12.48.36_PM-d75d73f4-047d-4b05-b56f-2ccc299f4c9a.png)
+#### Example: Australia — different rules by tenure threshold
+
+A country could have two configs with different condition blocks:
+
+**Config 1 — Standard redundancy (most employees):**
+> **Include:** EOR Employee = True AND Country = AU AND Contract Type = Indefinite
+> **Except:** All - Contractors
+
+**Config 2 — Fixed term contracts:**
+> **Include:** EOR Employee = True AND Country = AU AND Contract Type = Fixed Term
+
+#### Rule resolution
+
+When multiple configs exist for a country, the system evaluates them in the order the admin has arranged them. The **first matching rule wins**. If no rule matches, the employee is flagged for manual review — there is no silent fallback to avoid under-collateralization.
+
+Admins can reorder rules by dragging them in the UI, so more specific rules (e.g., province-specific) should be placed above broader rules (e.g., country-wide).
 
 ### 3.5 Example: Philippines
 
