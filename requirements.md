@@ -245,67 +245,25 @@ These admin input values should be stored as a configuration for each country (p
 
 ## 4. Runtime Calculation
 
-### 4.1 Condition evaluation — which rule applies?
+### 4.1 What to calculate during hiring/transition
 
-Before calculating any termination costs, the system must first determine **which termination liability config applies** to the employee. This is the condition evaluation step.
-
-**Step 1 — Gather employee attributes:**
-
-Collect the following from the employee record:
-
-| Attribute | Source |
-|---|---|
-| Country | Employee's work country |
-| Is EOR Employee? | Employment model flag |
-| Contract Type | Indefinite or Fixed Term |
-| Employment Model | Staff Aug, Consultant, Direct Hire, etc. |
-| Province / State | Work location sub-region (if applicable) |
-| Worker Category | Full-Time, Part-Time |
-| Worker Type | Employee, Contractor, Intern, etc. |
-
-**Step 2 — Evaluate condition blocks:**
-
-For the employee's country, fetch all termination liability configs. Evaluate each config's condition block (Section 3.4) against the employee's attributes, in priority order:
-
-1. Check the **include criteria** — does the employee satisfy all AND conditions?
-2. Check the **exclude criteria** — is the employee in any excluded group?
-3. If the employee matches the include criteria and is NOT excluded → this config applies
-4. If the employee doesn't match → move to the next config in priority order
-
-**Step 3 — Handle no match:**
-
-If no config's condition block matches the employee, the system should:
-- Flag the employee for manual review
-- Surface an alert to the admin (e.g., "No termination liability rule matches this employee")
-- Do NOT silently default to zero — this would result in under-collateralization
-
-**Example walkthrough:**
-
-An EOR employee in Australia on an Indefinite contract:
-1. System fetches all AU configs → finds Config 1 (Indefinite) and Config 2 (Fixed Term)
-2. Evaluates Config 1: Include = EOR Employee AND Country = AU AND Contract Type = Indefinite → all true. Except = Contractors → employee is not a contractor → not excluded
-3. Config 1 matches → use Config 1's severance components, MTA settings, and vacation payout rules
-4. Config 2 is never evaluated
-
-### 4.2 Calculating termination costs
-
-Once the matching config is identified (from 4.1), calculate the following and pass to the risk role bean:
+During hiring or role transition, we should calculate the following for each role and pass it to the risk role bean:
 
 **`severance_days`** — The number of days we owe severance for.
 
 **If MTA is not the default:**
 - Fetch the tenure in days for the employee
-- Iterate through all severance cost components in the matched config
-- Evaluate each component against the employee's tenure
+- Iterate through all severance cost components in the country config
+- Evaluate each component against the employee's tenure and conditions
 - Sum the results → this is `severance_days`
 
 **If MTA is the default:**
 - Evaluate the MTA severance config (which can be Fixed / Per year of service / Tenure-based, just like regular severance components) against the employee's tenure → this is `severance_days`
-- Additionally pass `mta_days` — the fixed number of days it takes to secure the MTA on average (from the matched config)
+- Additionally pass `mta_days` — the fixed number of days it takes to secure the MTA on average (from config)
 
-**`vacation_days_payout`** — If the matched config specifies "All Accrued", pass the employee's accrued vacation days. Otherwise, pass `min(accrued vacation days, statutory minimum from config)`. For example: if an employee has 30 days accrued but the statutory minimum payout is 5 days, we pass 5. If an employee has only 2 days accrued, we pass 2.
+**`vacation_days_payout`** — If the country config specifies "All Accrued", pass the employee's accrued vacation days. Otherwise, pass `min(accrued vacation days, statutory minimum from config)`. For example: if an employee has 30 days accrued but the statutory minimum payout is 5 days, we pass 5. If an employee has only 2 days accrued, we pass 2.
 
-### 4.3 Compensation information
+### 4.2 Compensation information
 
 To calculate the dollar amount of severance and notice period pay, Risk needs to know the full compensation breakdown — not just a single "monthly salary" number. We need to modify the compensation object passed to Risk to include:
 
@@ -319,7 +277,7 @@ This allows Risk to determine, for each compensation variable, whether it is inc
 
 **Handling bonus rate vs bonus amount:** Some compensation variables are defined as a percentage of base salary (e.g., 10% annual bonus) rather than a fixed amount. We should always resolve percentages to amounts before passing them into the compensation array. The compensation array is assembled at hiring/transition time when the base salary is known, so the conversion is straightforward. This keeps Risk's job simple — it only reads amounts, never needs to resolve percentages.
 
-### 4.4 Current vs New Risk Role Bean
+### 4.3 Current vs New Risk Role Bean
 
 **Current JSON passed to Risk:**
 
