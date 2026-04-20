@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termination Liability Config — Admin UI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f5;
+  --card: #ffffff;
+  --border: #e2e2e0;
+  --text: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --accent: #2563eb;
+  --accent-light: #eff4ff;
+  --accent-hover: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warning-bg: #fffbeb;
+  --warning: #d97706;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); padding: 32px; max-width: 880px; margin: 0 auto; }
+
+/* Header */
+.header { margin-bottom: 28px; }
+.header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+.header p { color: var(--text-secondary); font-size: 14px; }
+
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+.badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 4px; background: var(--warning-bg); color: var(--warning); }
+
+/* Forms */
+.form-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+.form-group { flex: 1; }
+.form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+select, input[type="number"], input[type="text"] {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: inherit; font-size: 14px; color: var(--text); background: white; outline: none; transition: border-color 0.15s;
+}
+select:focus, input:focus { border-color: var(--accent); }
+
+/* Toggle */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+.toggle-row .t-label { font-size: 14px; font-weight: 500; }
+.toggle-row .t-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch .track { position: absolute; inset: 0; background: #d1d5db; border-radius: 12px; transition: 0.2s; cursor: pointer; }
+.switch .track:before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track:before { transform: translateX(20px); }
+
+/* MTA section */
+.mta-box { margin-top: 16px; padding: 16px; background: var(--accent-light); border-radius: 6px; border: 1px solid #dbeafe; transition: all 0.3s ease; }
+.mta-box .mta-label { font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+/* Calc type tabs */
+.calc-tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+.calc-tabs button { flex: 1; padding: 8px 12px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer;
+  background: white; border: none; border-right: 1px solid var(--border); color: var(--text-secondary); font-family: inherit; transition: all 0.15s; }
+.calc-tabs button:last-child { border-right: none; }
+.calc-tabs button.active { background: var(--accent); color: white; }
+.calc-content { display: none; }
+.calc-content.active { display: block; }
+
+/* Component card */
+.comp-card { border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 12px; background: #fafafa; }
+.comp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.comp-header .cname { font-size: 14px; font-weight: 600; }
+.default-badge { font-size: 11px; color: var(--success); background: var(--success-bg); padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+
+/* Tier table */
+.tier-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.tier-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--text-secondary); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.tier-table td { padding: 6px 8px; }
+.tier-table input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; font-family: 'Space Mono', monospace; }
+
+/* Buttons */
+.add-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--accent);
+  cursor: pointer; padding: 6px 12px; border: 1px dashed var(--accent); border-radius: 6px; background: none; font-family: inherit; transition: all 0.15s; }
+.add-btn:hover { background: var(--accent-light); }
+.remove-btn { font-size: 12px; color: var(--danger); cursor: pointer; background: none; border: none; font-family: inherit; font-weight: 500; }
+.remove-btn:hover { text-decoration: underline; }
+
+/* Condition block */
+.cond-block { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.cond-head { padding: 12px 16px; background: #fafafa; font-size: 13px; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.cond-rule { padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.cond-pill { background: var(--accent-light); color: var(--accent); padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+.cond-except { padding: 10px 16px; background: #fef2f2; font-size: 13px; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); }
+.cond-except .ex-label { font-weight: 600; color: var(--danger); font-size: 12px; }
+
+/* Main tabs */
+.main-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 24px; }
+.main-tabs button { padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-secondary);
+  border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; font-family: inherit; transition: all 0.15s; }
+.main-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Comp var table */
+.cv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cv-table th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+.cv-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.cv-table tr:last-child td { border-bottom: none; }
+.cv-table .vname { font-weight: 500; }
+.pill-toggle { padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; min-width: 40px; }
+.pill-toggle.on { background: var(--success-bg); color: var(--success); }
+.pill-toggle.off { background: #f3f4f6; color: #9ca3af; }
+.m-badge { font-size: 10px; background: #fef2f2; color: var(--danger); padding: 1px 6px; border-radius: 3px; font-weight: 500; margin-left: 6px; }
+.o-badge { font-size: 10px; background: #f3f4f6; color: #9ca3af; padding: 1px 6px; border-radius: 3px; font-weight: 500; margin-left: 6px; }
+
+/* Save bar */
+.save-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.btn { padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; border: 1px solid var(--border); transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: white; color: var(--text); }
+.btn-ghost:hover { background: #f5f5f5; }
+
+/* JSON drawer */
+.json-drawer { position: fixed; right: 0; top: 0; width: 420px; height: 100vh; background: #1e1e2e; color: #cdd6f4;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.15); transform: translateX(100%); transition: transform 0.3s ease; z-index: 200;
+  display: flex; flex-direction: column; }
+.json-drawer.open { transform: translateX(0); }
+.json-drawer-head { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; }
+.json-drawer-head h3 { font-size: 14px; font-weight: 600; color: #cdd6f4; }
+.json-drawer-close { background: none; border: none; color: #6c7086; font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+.json-drawer-close:hover { background: #313244; color: #cdd6f4; }
+.json-drawer-body { flex: 1; overflow: auto; padding: 16px 20px; }
+.json-drawer-body pre { font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.json-drawer-body .jk { color: #89b4fa; }
+.json-drawer-body .js { color: #a6e3a1; }
+.json-drawer-body .jn { color: #fab387; }
+.json-drawer-body .jb { color: #f38ba8; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1e1e2e; color: white;
+  padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease; z-index: 300; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Transition helpers */
+.slide-down { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease, padding 0.35s ease; margin-top: 0; padding: 0 16px; }
+.slide-down.open { max-height: 600px; opacity: 1; margin-top: 16px; padding: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Termination Liability Configuration</h1>
+  <p>Configure termination cost rules per country for EOR deposit estimation</p>
+</div>
+
+<!-- Country selector -->
+<div class="card" style="padding: 16px 24px;">
+  <div class="form-row" style="margin-bottom: 0;">
+    <div class="form-group">
+      <label>Country</label>
+      <select id="country-select" style="font-size: 15px; padding: 10px 12px;">
+        <option value="PH">Philippines (PH)</option>
+        <option value="AU">Australia (AU)</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex: 0 0 auto; align-self: flex-end;">
+      <button class="btn btn-ghost" id="json-toggle-btn" style="font-size: 13px; padding: 10px 16px;">{ } View JSON</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main tabs -->
+<div class="main-tabs" id="main-tabs">
+  <button class="active" data-tab="comp-metadata">Compensation Variable Metadata</button>
+  <button data-tab="term-rules">Termination Liability Rules</button>
+</div>
+
+<!-- ========== TAB 1: Compensation Variable Metadata ========== -->
+<div id="panel-comp-metadata">
+  <div class="card">
+    <div class="card-title">Compensation Variables — <span id="cv-country-name">Philippines</span></div>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+      For each compensation variable, indicate whether it is included in gross pay for working notice and severance calculations. New variables default to "No" for both.
+    </p>
+    <table class="cv-table">
+      <thead>
+        <tr>
+          <th>Compensation Variable</th>
+          <th style="text-align: center;">Included in<br>Working Notice?</th>
+          <th style="text-align: center;">Included in<br>Severance?</th>
+        </tr>
+      </thead>
+      <tbody id="cv-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== TAB 2: Termination Liability Rules ========== -->
+<div id="panel-term-rules" style="display:none;">
+
+  <!-- General Inputs -->
+  <div class="card">
+    <div class="card-title">General Inputs</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Contract Type</label>
+        <select id="contract-type">
+          <option value="INDEFINITE">Indefinite</option>
+          <option value="FIXED_TERM">Fixed Term</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="toggle-row" style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 16px;">
+      <div>
+        <div class="t-label">Is MTA the default practice?</div>
+        <div class="t-sub">Whether Rippling typically negotiates a mutual separation agreement</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="mta-toggle"><span class="track"></span></label>
+    </div>
+
+    <div class="mta-box slide-down" id="mta-box">
+      <div class="mta-label">MTA Configuration</div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label>How many days does it take to secure the MTA, on average?</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="mta-days-val" value="0" style="max-width:140px;">
+          <span style="font-size:13px;color:var(--text-secondary);">days (always fixed)</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>How many days of severance are offered in exchange for the MTA signature?</label>
+        <div class="calc-tabs" id="mta-sev-tabs" style="max-width: 420px;">
+          <button class="active" data-type="FIXED">Fixed</button>
+          <button data-type="PER_YEAR">Per year</button>
+          <button data-type="TIERED">Tenure-based</button>
+        </div>
+        <div class="calc-content active" id="mta-sev-fixed">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="mta-sev-val" value="0" style="max-width:140px;">
+            <span style="font-size:13px;color:var(--text-secondary);">days</span>
+          </div>
+        </div>
+        <div class="calc-content" id="mta-sev-peryear">
+          <div class="form-row">
+            <div class="form-group"><label>Days per year of service</label><input type="number" id="mta-sev-py-val" value="0"></div>
+            <div class="form-group"><label>Prorate partial years?</label>
+              <select id="mta-sev-py-prorate"><option value="true">Yes</option><option value="false">No</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="calc-content" id="mta-sev-tiered">
+          <table class="tier-table"><thead><tr><th>From</th><th>To</th><th>Days</th></tr></thead>
+            <tbody id="mta-sev-tier-body">
+              <tr><td><input value="0"></td><td><input value="12"></td><td><input value="0"></td></tr>
+              <tr><td><input value="12"></td><td><input value="∞"></td><td><input value="0"></td></tr>
+            </tbody>
+          </table>
+          <button class="add-btn" style="font-size:12px;" onclick="addTierRow('mta-sev-tier-body')">+ Add tier</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Severance Cost Components -->
+  <div class="card">
+    <div class="card-title">Severance Cost Components</div>
+    <div id="components-container"></div>
+    <button class="add-btn" id="add-comp-btn" style="margin-top: 4px;">+ Add component</button>
+  </div>
+
+  <!-- Vacation Payout -->
+  <div class="card">
+    <div class="card-title">Vacation Payout</div>
+    <div class="toggle-row">
+      <div>
+        <div class="t-label">Pay out accrued vacation during termination?</div>
+        <div class="t-sub">Whether unused leave is paid at termination</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="vac-toggle" checked><span class="track"></span></label>
+    </div>
+    <div id="vac-details" style="margin-top: 16px;">
+      <div class="form-group">
+        <label>What is the minimum that needs to be paid out?</label>
+        <select id="vac-min">
+          <option value="ALL_ACCRUED">All Accrued</option>
+          <option value="FIXED">Fixed number of days</option>
+        </select>
+      </div>
+      <div id="vac-fixed-days" style="display:none;margin-top:12px;">
+        <div class="form-group">
+          <label>Number of days</label>
+          <input type="number" id="vac-fixed-val" value="5" style="max-width:140px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Eligibility -->
+  <div class="card">
+    <div class="card-title">Eligibility — Condition Block</div>
+    <div class="cond-block">
+      <div class="cond-head">Include people who are</div>
+      <div class="cond-rule"><span class="cond-pill">Employee → Is an EOR Employee? is True</span></div>
+      <div class="cond-except"><span class="ex-label">Except:</span><span class="cond-pill" style="background:#fef2f2;color:var(--danger);">All - Contractors</span></div>
+    </div>
+    <button class="add-btn" style="margin-top:12px;">+ Add condition</button>
+  </div>
+</div>
+
+<!-- Save bar -->
+<div class="save-bar">
+  <button class="btn btn-ghost">Cancel</button>
+  <button class="btn btn-primary" id="save-btn">Save Configuration</button>
+</div>
+
+<!-- JSON Drawer -->
+<div class="json-drawer" id="json-drawer">
+  <div class="json-drawer-head">
+    <h3>Live JSON Preview</h3>
+    <button class="json-drawer-close" id="json-close-btn">✕</button>
+  </div>
+  <div class="json-drawer-body"><pre id="json-output"></pre></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">Configuration saved</div>
+
+<script>
+// ===================== DATA =====================
+const COUNTRY_DATA = {
+  PH: {
+    name: "Philippines",
+    compVars: [
+      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true },
+      { name: "Target Bonus", mandatory: false, notice: true, severance: false },
+      { name: "Signing Bonus", mandatory: false, notice: true, severance: false },
+      { name: "On-Target Commission", mandatory: false, notice: true, severance: false },
+      { name: "Rice Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Uniform & Clothing Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Laundry Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Medical Cash Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Internet Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Productivity Incentive Allowance", mandatory: false, notice: true, severance: false },
+      { name: "Christmas / Anniversary Gift", mandatory: false, notice: true, severance: false },
+      { name: "13th Month Salary", mandatory: true, notice: true, severance: false },
+    ],
+    mta: false,
+    components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "PER_YEAR", value: 30, unit: "days", prorated: true, isDefault: true }],
+    vacation: { enabled: true, minimum: "ALL_ACCRUED" }
+  },
+  AU: {
+    name: "Australia",
+    compVars: [
+      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true },
+      { name: "Target Bonus", mandatory: false, notice: false, severance: false },
+      { name: "Superannuation", mandatory: true, notice: false, severance: false },
+      { name: "On-Target Commission", mandatory: false, notice: false, severance: false },
+    ],
+    mta: false,
+    components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "TIERED", unit: "weeks", isDefault: true,
+      tiers: [{ from: 0, to: 12, value: 0 }, { from: 12, to: 24, value: 4 }, { from: 24, to: 36, value: 6 },
+              { from: 36, to: 48, value: 7 }, { from: 48, to: 60, value: 8 }, { from: 60, to: null, value: 12 }] }],
+    vacation: { enabled: true, minimum: "ALL_ACCRUED" }
+  },
+};
+
+// ===================== STATE =====================
+let state = {
+  country: "PH",
+  activeTab: "comp-metadata",
+  jsonOpen: false,
+};
+
+// Deep clone country data into editable state
+function getCountryState(code) {
+  return JSON.parse(JSON.stringify(COUNTRY_DATA[code]));
+}
+let editState = getCountryState("PH");
+let compCounter = 100;
+
+// ===================== RENDER =====================
+function renderCompVars() {
+  const tbody = document.getElementById("cv-table-body");
+  document.getElementById("cv-country-name").textContent = editState.name;
+  tbody.innerHTML = editState.compVars.map((v, i) => `
+    <tr>
+      <td class="vname">${v.name} ${v.mandatory ? '<span class="m-badge">Mandatory</span>' : '<span class="o-badge">Optional</span>'}</td>
+      <td style="text-align:center;"><button class="pill-toggle ${v.notice ? 'on' : 'off'}" onclick="toggleCV(${i},'notice')">${v.notice ? 'Yes' : 'No'}</button></td>
+      <td style="text-align:center;"><button class="pill-toggle ${v.severance ? 'on' : 'off'}" onclick="toggleCV(${i},'severance')">${v.severance ? 'Yes' : 'No'}</button></td>
+    </tr>
+  `).join("");
+}
+
+function toggleCV(idx, field) {
+  editState.compVars[idx][field] = !editState.compVars[idx][field];
+  renderCompVars();
+  updateJSON();
+}
+
+function renderComponents() {
+  const container = document.getElementById("components-container");
+  container.innerHTML = editState.components.map((c, i) => {
+    const id = `comp-${i}`;
+    return `
+    <div class="comp-card" id="${id}">
+      <div class="comp-header">
+        <div class="cname">${c.isDefault ? c.label : `<input type="text" value="${c.label}" style="border:none;font-weight:600;font-size:14px;padding:0;font-family:inherit;background:transparent;outline:none;width:280px;" onchange="updateCompLabel(${i},this.value)">`}</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${c.isDefault ? '<span class="default-badge">Default</span>' : `<button class="remove-btn" onclick="removeComp(${i})">Remove</button>`}
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Calculation Type</label>
+        <div class="calc-tabs">
+          <button ${c.type==='FIXED'?'class="active"':''} onclick="setCompType(${i},'FIXED')">Fixed</button>
+          <button ${c.type==='PER_YEAR'?'class="active"':''} onclick="setCompType(${i},'PER_YEAR')">Per year of service</button>
+          <button ${c.type==='TIERED'?'class="active"':''} onclick="setCompType(${i},'TIERED')">Tenure-based</button>
+        </div>
+      </div>
+      ${renderCalcContent(c, i)}
+    </div>`;
+  }).join("");
+}
+
+function renderCalcContent(c, i) {
+  if (c.type === "FIXED") {
+    return `<div class="form-row"><div class="form-group"><label>Days of severance</label>
+      <input type="number" value="${c.value||0}" onchange="editState.components[${i}].value=+this.value;updateJSON()"></div></div>`;
+  }
+  if (c.type === "PER_YEAR") {
+    return `<div class="form-row">
+      <div class="form-group"><label>Days per year of service</label>
+        <input type="number" value="${c.value||0}" onchange="editState.components[${i}].value=+this.value;updateJSON()"></div>
+      <div class="form-group"><label>Prorate partial years?</label>
+        <select onchange="editState.components[${i}].prorated=this.value==='true';updateJSON()">
+          <option value="true" ${c.prorated?'selected':''}>Yes</option><option value="false" ${!c.prorated?'selected':''}>No</option></select></div>
+    </div>`;
+  }
+  if (c.type === "TIERED") {
+    const tiers = c.tiers || [{ from: 0, to: 24, value: 0 }, { from: 24, to: null, value: 0 }];
+    c.tiers = tiers;
+    return `<table class="tier-table"><thead><tr><th>From (months)</th><th>To (months)</th><th>Days</th></tr></thead>
+      <tbody>${tiers.map((t, ti) => `<tr>
+        <td><input value="${t.from}" onchange="editState.components[${i}].tiers[${ti}].from=+this.value;updateJSON()"></td>
+        <td><input value="${t.to === null ? '∞' : t.to}" onchange="editState.components[${i}].tiers[${ti}].to=this.value==='∞'?null:+this.value;updateJSON()"></td>
+        <td><input value="${t.value}" onchange="editState.components[${i}].tiers[${ti}].value=+this.value;updateJSON()"></td>
+      </tr>`).join("")}</tbody></table>
+      <button class="add-btn" style="font-size:12px;" onclick="addCompTier(${i})">+ Add tier</button>`;
+  }
+  return "";
+}
+
+function setCompType(i, type) {
+  editState.components[i].type = type;
+  if (type === "FIXED") { editState.components[i].value = editState.components[i].value || 0; delete editState.components[i].tiers; }
+  if (type === "PER_YEAR") { editState.components[i].value = editState.components[i].value || 0; editState.components[i].prorated = editState.components[i].prorated ?? true; delete editState.components[i].tiers; }
+  if (type === "TIERED") { editState.components[i].tiers = editState.components[i].tiers || [{ from: 0, to: 24, value: 0 }, { from: 24, to: null, value: 0 }]; }
+  renderComponents();
+  updateJSON();
+}
+
+function updateCompLabel(i, val) { editState.components[i].label = val; updateJSON(); }
+
+function removeComp(i) { editState.components.splice(i, 1); renderComponents(); updateJSON(); }
+
+function addCompTier(i) {
+  const tiers = editState.components[i].tiers;
+  const last = tiers[tiers.length - 1];
+  const prevTo = last.to || 60;
+  last.to = prevTo;
+  tiers.push({ from: prevTo, to: null, value: 0 });
+  renderComponents();
+  updateJSON();
+}
+
+// ===================== TABS =====================
+document.getElementById("main-tabs").addEventListener("click", function(e) {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  state.activeTab = tab;
+  this.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("panel-comp-metadata").style.display = tab === "comp-metadata" ? "" : "none";
+  document.getElementById("panel-term-rules").style.display = tab === "term-rules" ? "" : "none";
+});
+
+// ===================== MTA =====================
+document.getElementById("mta-toggle").addEventListener("change", function() {
+  editState.mta = this.checked;
+  document.getElementById("mta-box").classList.toggle("open", this.checked);
+  updateJSON();
+});
+
+document.getElementById("mta-days-val").addEventListener("change", function() { editState.mtaDaysValue = +this.value; updateJSON(); });
+
+document.getElementById("mta-sev-tabs").addEventListener("click", function(e) {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  this.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const type = btn.dataset.type;
+  editState.mtaSevType = type;
+  document.getElementById("mta-sev-fixed").classList.toggle("active", type === "FIXED");
+  document.getElementById("mta-sev-peryear").classList.toggle("active", type === "PER_YEAR");
+  document.getElementById("mta-sev-tiered").classList.toggle("active", type === "TIERED");
+  updateJSON();
+});
+
+document.getElementById("mta-sev-val").addEventListener("change", function() { editState.mtaSevDays = +this.value; updateJSON(); });
+
+// ===================== VACATION =====================
+document.getElementById("vac-toggle").addEventListener("change", function() {
+  editState.vacation.enabled = this.checked;
+  document.getElementById("vac-details").style.display = this.checked ? "" : "none";
+  updateJSON();
+});
+
+document.getElementById("vac-min").addEventListener("change", function() {
+  editState.vacation.minimum = this.value;
+  document.getElementById("vac-fixed-days").style.display = this.value === "FIXED" ? "" : "none";
+  updateJSON();
+});
+
+document.getElementById("vac-fixed-val").addEventListener("change", function() {
+  editState.vacation.fixedDays = +this.value;
+  updateJSON();
+});
+
+// ===================== ADD COMPONENT =====================
+document.getElementById("add-comp-btn").addEventListener("click", function() {
+  compCounter++;
+  editState.components.push({ key: "custom_" + compCounter, label: "New Component", type: "FIXED", value: 0, unit: "days", isDefault: false });
+  renderComponents();
+  updateJSON();
+});
+
+// ===================== COUNTRY SWITCH =====================
+document.getElementById("country-select").addEventListener("change", function() {
+  state.country = this.value;
+  document.getElementById("contract-type").value = "INDEFINITE";
+  editState = getCountryState(this.value);
+  loadCountry();
+});
+
+// ===================== CONTRACT TYPE SWITCH =====================
+document.getElementById("contract-type").addEventListener("change", function() {
+  if (this.value === "FIXED_TERM") {
+    editState.mta = false;
+    editState.mtaDaysValue = 0;
+    editState.mtaSevType = "FIXED";
+    editState.mtaSevDays = 0;
+    editState.components = [{ key: "redundancy_pay", label: "Redundancy Pay", type: "FIXED", value: 0, unit: "days", isDefault: true }];
+    editState.vacation = { enabled: false, minimum: "ALL_ACCRUED" };
+  } else {
+    var fresh = getCountryState(state.country);
+    editState.mta = fresh.mta;
+    editState.mtaDaysValue = fresh.mtaDaysValue;
+    editState.mtaSevType = fresh.mtaSevType;
+    editState.mtaSevDays = fresh.mtaSevDays;
+    editState.components = fresh.components;
+    editState.vacation = fresh.vacation;
+  }
+  loadCountry();
+});
+
+function loadCountry() {
+  renderCompVars();
+  renderComponents();
+
+  document.getElementById("mta-toggle").checked = editState.mta;
+  document.getElementById("mta-box").classList.toggle("open", editState.mta);
+
+  document.getElementById("vac-toggle").checked = editState.vacation.enabled;
+  document.getElementById("vac-details").style.display = editState.vacation.enabled ? "" : "none";
+  document.getElementById("vac-min").value = editState.vacation.minimum;
+  document.getElementById("vac-fixed-days").style.display = editState.vacation.minimum === "FIXED" ? "" : "none";
+
+  document.getElementById("mta-days-val").value = editState.mtaDaysValue || 0;
+  document.getElementById("mta-sev-val").value = editState.mtaSevDays || 0;
+
+  var sevType = editState.mtaSevType || "FIXED";
+  document.getElementById("mta-sev-tabs").querySelectorAll("button").forEach(function(b) {
+    b.classList.toggle("active", b.dataset.type === sevType);
+  });
+  document.getElementById("mta-sev-fixed").classList.toggle("active", sevType === "FIXED");
+  document.getElementById("mta-sev-peryear").classList.toggle("active", sevType === "PER_YEAR");
+  document.getElementById("mta-sev-tiered").classList.toggle("active", sevType === "TIERED");
+
+  updateJSON();
+}
+
+// ===================== JSON PREVIEW =====================
+function buildJSON() {
+  const json = {
+    country_code: state.country,
+    contract_types: [document.getElementById("contract-type").value],
+    mta: { is_default: editState.mta },
+    cost_components: editState.components.map(c => {
+      const obj = { key: c.key, label: c.label, type: c.type, unit: c.unit || "days" };
+      if (c.type === "FIXED") obj.value = c.value;
+      if (c.type === "PER_YEAR") { obj.value = c.value; obj.prorated = c.prorated; }
+      if (c.type === "TIERED") obj.tenure_tiers = (c.tiers || []).map(t => ({ min_months: t.from, max_months: t.to, value: t.value }));
+      if (c.minTenure) obj.min_tenure_months = c.minTenure;
+      return obj;
+    }),
+    vacation_payout: { enabled: editState.vacation.enabled },
+    compensation_metadata: editState.compVars.map(v => ({ variable: v.name, included_in_working_notice: v.notice, included_in_severance: v.severance })),
+  };
+
+  if (editState.mta) {
+    json.mta.days_to_secure = editState.mtaDaysValue || 30;
+    json.mta.severance_for_signature = { type: editState.mtaSevType || "FIXED", value: editState.mtaSevDays || 90 };
+  }
+
+  if (editState.vacation.enabled) {
+    json.vacation_payout.minimum = editState.vacation.minimum;
+    if (editState.vacation.minimum === "FIXED") json.vacation_payout.fixed_days = editState.vacation.fixedDays || 5;
+  }
+
+  return json;
+}
+
+function syntaxHighlight(json) {
+  return JSON.stringify(json, null, 2)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)":/g, '<span class="jk">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span class="js">"$1"</span>')
+    .replace(/: (\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+    .replace(/: (true|false|null)/g, ': <span class="jb">$1</span>');
+}
+
+function updateJSON() {
+  if (state.jsonOpen) {
+    document.getElementById("json-output").innerHTML = syntaxHighlight(buildJSON());
+  }
+}
+
+document.getElementById("json-toggle-btn").addEventListener("click", function() {
+  state.jsonOpen = !state.jsonOpen;
+  document.getElementById("json-drawer").classList.toggle("open", state.jsonOpen);
+  this.textContent = state.jsonOpen ? "✕ Close JSON" : "{ } View JSON";
+  if (state.jsonOpen) updateJSON();
+});
+
+document.getElementById("json-close-btn").addEventListener("click", function() {
+  state.jsonOpen = false;
+  document.getElementById("json-drawer").classList.remove("open");
+  document.getElementById("json-toggle-btn").textContent = "{ } View JSON";
+});
+
+// ===================== SAVE =====================
+document.getElementById("save-btn").addEventListener("click", function() {
+  const toast = document.getElementById("toast");
+  toast.textContent = `${editState.name} configuration saved`;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2500);
+});
+
+// ===================== TIER HELPER =====================
+function addTierRow(tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  const rows = tbody.querySelectorAll("tr");
+  const lastRow = rows[rows.length - 1];
+  const inputs = lastRow.querySelectorAll("input");
+  const prevTo = inputs[1].value === "∞" ? 60 : parseInt(inputs[1].value);
+  inputs[1].value = prevTo;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><input value="${prevTo}"></td><td><input value="∞"></td><td><input value=""></td>`;
+  tbody.appendChild(tr);
+}
+
+// ===================== INIT =====================
+loadCountry();
+</script>
+</body>
+</html>
