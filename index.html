@@ -549,7 +549,12 @@ function renderMtaSevTiers() {
         <td>${tiers.length > 1 ? `<button class="remove-btn" onclick="removeMtaSevTier(${ti})">✕</button>` : ''}</td>
       </tr>`).join("")}</tbody>
     </table>
-    <button class="add-btn" style="font-size:12px;" onclick="addMtaSevTier()">+ Add tier</button>`;
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+      <label style="font-size:13px;font-weight:500;">Max cap (days)</label>
+      <input type="number" value="${editState.mtaMaxDays ?? ''}" placeholder="No max" style="max-width:140px;"
+        onchange="editState.mtaMaxDays=this.value===''?null:+this.value;updateJSON()">
+    </div>
+    <button class="add-btn" style="font-size:12px;margin-top:8px;" onclick="addMtaSevTier()">+ Add tier</button>`;
 }
 
 function switchMtaSevMethod(ti, method) {
@@ -612,7 +617,12 @@ function renderVacTiers() {
         <td>${tiers.length > 1 ? `<button class="remove-btn" onclick="removeVacTier(${ti})">✕</button>` : ''}</td>
       </tr>`).join("")}</tbody>
     </table>
-    <button class="add-btn" style="font-size:12px;" onclick="addVacTier()">+ Add tier</button>`;
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+      <label style="font-size:13px;font-weight:500;">Max cap (days)</label>
+      <input type="number" value="${editState.vacation.maxDays ?? ''}" placeholder="No max" style="max-width:140px;"
+        onchange="editState.vacation.maxDays=this.value===''?null:+this.value;updateJSON()">
+    </div>
+    <button class="add-btn" style="font-size:12px;margin-top:8px;" onclick="addVacTier()">+ Add tier</button>`;
 }
 
 function switchVacMethod(ti, method) {
@@ -765,6 +775,7 @@ function buildJSON() {
         return tier;
       })
     };
+    if (editState.mtaMaxDays != null) json.mta.severance_for_signature.max_days = editState.mtaMaxDays;
   }
 
   if (editState.vacation.enabled) {
@@ -776,6 +787,7 @@ function buildJSON() {
         else tier.days_per_year = t.daysPerYear;
         return tier;
       });
+      if (editState.vacation.maxDays != null) json.vacation_payout.max_days = editState.vacation.maxDays;
     }
   }
 
