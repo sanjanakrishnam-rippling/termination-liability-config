@@ -239,7 +239,7 @@ select:focus, input:focus { border-color: var(--accent); }
       </div>
 
       <div id="mta-remaining-contract-toggle" style="display:none;margin-bottom:16px;">
-        <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'&&!event.target.closest('.switch')){document.getElementById('mta-remaining-contract-cb').click();}" style="cursor:pointer;">
+        <div class="toggle-row" id="mta-remaining-contract-row" style="cursor:pointer;">
           <div>
             <div class="t-label">Use remaining days on contract as MTA severance?</div>
             <div class="t-sub">If enabled, MTA severance = contract end date minus termination date. The tier table below is ignored.</div>
@@ -283,7 +283,7 @@ select:focus, input:focus { border-color: var(--accent); }
       These cost components only apply when MTA is not used for the employee. If MTA applies, the severance above is used instead.
     </div>
     <div id="remaining-contract-toggle" style="display:none;margin-bottom:16px;">
-      <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'&&!event.target.closest('.switch')){document.getElementById('remaining-contract-cb').click();}" style="cursor:pointer;">
+      <div class="toggle-row" id="remaining-contract-row" style="cursor:pointer;">
         <div>
           <div class="t-label">Use remaining days on contract as severance?</div>
           <div class="t-sub">If enabled, severance = contract end date minus termination date. The tier table below is ignored.</div>
@@ -677,19 +677,31 @@ function addVacTier() {
 }
 
 // ===================== REMAINING CONTRACT DAYS =====================
-document.getElementById("remaining-contract-cb").addEventListener("change", function() {
-  editState.useRemainingContractDays = this.checked;
-  document.getElementById("remaining-contract-info").style.display = this.checked ? "" : "none";
-  document.getElementById("components-wrapper").style.display = this.checked ? "none" : "";
+function handleRemainingContractToggle(cb, stateKey, infoId, wrapperId) {
+  var checked = cb.checked;
+  editState[stateKey] = checked;
+  document.getElementById(infoId).style.display = checked ? "" : "none";
+  document.getElementById(wrapperId).style.display = checked ? "none" : "";
   updateJSON();
+}
+
+document.getElementById("remaining-contract-cb").addEventListener("change", function() {
+  handleRemainingContractToggle(this, "useRemainingContractDays", "remaining-contract-info", "components-wrapper");
+});
+document.getElementById("mta-remaining-contract-cb").addEventListener("change", function() {
+  handleRemainingContractToggle(this, "mtaUseRemainingContractDays", "mta-remaining-contract-info", "mta-tiers-wrapper");
 });
 
-document.getElementById("mta-remaining-contract-cb").addEventListener("change", function() {
-  editState.mtaUseRemainingContractDays = this.checked;
-  document.getElementById("mta-remaining-contract-info").style.display = this.checked ? "" : "none";
-  document.getElementById("mta-tiers-wrapper").style.display = this.checked ? "none" : "";
-  updateJSON();
-});
+function setupRowToggle(rowId, cbId) {
+  document.getElementById(rowId).addEventListener("click", function(e) {
+    if (e.target.closest(".switch")) return;
+    var cb = document.getElementById(cbId);
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event("change"));
+  });
+}
+setupRowToggle("remaining-contract-row", "remaining-contract-cb");
+setupRowToggle("mta-remaining-contract-row", "mta-remaining-contract-cb");
 
 function updateRemainingContractToggle() {
   var isFixedTerm = document.getElementById("contract-type").value === "FIXED_TERM";
