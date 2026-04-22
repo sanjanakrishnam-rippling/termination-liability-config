@@ -216,19 +216,22 @@ select:focus, input:focus { border-color: var(--accent); }
       </div>
     </div>
 
-    <div class="toggle-row" style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 16px;">
-      <div>
-        <div class="t-label">Is MTA the default practice?</div>
-        <div class="t-sub">Whether Rippling typically negotiates a mutual separation agreement</div>
+    <div style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 16px;">
+      <div class="form-group">
+        <label>Is MTA the default practice?</label>
+        <select id="mta-select" style="max-width:320px;">
+          <option value="NO">No</option>
+          <option value="YES_ALWAYS">Yes — always</option>
+          <option value="YES_ABOVE_TENURE">Yes — above tenure threshold</option>
+        </select>
       </div>
-      <label class="switch"><input type="checkbox" id="mta-toggle"><span class="track"></span></label>
     </div>
 
     <div class="mta-box slide-down" id="mta-box">
       <div class="mta-label">MTA Configuration</div>
 
       <div class="form-group" style="margin-bottom: 16px;">
-        <label>How many days does it take to secure the MTA, on average?</label>
+        <label>How many days does it take to secure the MTA, on average (excluding applicable notice period days)?</label>
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="number" id="mta-days-val" value="0" style="max-width:140px;">
           <span style="font-size:13px;color:var(--text-secondary);">days</span>
@@ -239,12 +242,20 @@ select:focus, input:focus { border-color: var(--accent); }
         <label>How many days of severance are offered in exchange for the MTA signature?</label>
         <div id="mta-sev-tiers-container"></div>
       </div>
+
+      <div style="margin-top:14px;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:12px;color:#9a3412;">
+        When MTA is used, these severance days replace the severance cost components below — they are not added together.
+      </div>
     </div>
   </div>
 
+
   <!-- Severance Cost Components -->
-  <div class="card">
+  <div class="card" id="sev-components-card">
     <div class="card-title">Severance Cost Components</div>
+    <div id="sev-mta-note" style="display:none;margin-bottom:16px;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:12px;color:#9a3412;">
+      These cost components only apply when MTA is not used for the employee. If MTA applies, the severance above is used instead.
+    </div>
     <div id="remaining-contract-toggle" style="display:none;margin-bottom:16px;">
       <div class="toggle-row" onclick="document.getElementById('remaining-contract-cb').click();" style="cursor:pointer;">
         <div>
@@ -489,13 +500,21 @@ document.getElementById("main-tabs").addEventListener("click", function(e) {
 });
 
 // ===================== MTA =====================
-document.getElementById("mta-toggle").addEventListener("change", function() {
-  editState.mta = this.checked;
-  document.getElementById("mta-box").classList.toggle("open", this.checked);
+document.getElementById("mta-select").addEventListener("change", function() {
+  var val = this.value;
+  editState.mta = val !== "NO";
+  editState.mtaMode = val;
+  document.getElementById("mta-box").classList.toggle("open", val !== "NO");
+  updatePathIndicator();
   updateJSON();
 });
 
+
 document.getElementById("mta-days-val").addEventListener("change", function() { editState.mtaDaysValue = +this.value; updateJSON(); });
+
+function updatePathIndicator() {
+  document.getElementById("sev-mta-note").style.display = editState.mta ? "" : "none";
+}
 
 function renderMtaSevTiers() {
   if (!editState.mtaSevTiers) editState.mtaSevTiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
@@ -656,6 +675,8 @@ document.getElementById("country-select").addEventListener("change", function() 
 document.getElementById("contract-type").addEventListener("change", function() {
   if (this.value === "FIXED_TERM") {
     editState.mta = false;
+    editState.mtaMode = "NO";
+    editState.mtaTenureThreshold = null;
     editState.mtaDaysValue = 0;
     editState.mtaSevTiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
     editState.components = [{
@@ -680,8 +701,11 @@ function loadCountry() {
   renderComponents();
   updateRemainingContractToggle();
 
-  document.getElementById("mta-toggle").checked = editState.mta;
-  document.getElementById("mta-box").classList.toggle("open", editState.mta);
+  var mtaMode = editState.mtaMode || (editState.mta ? "YES_ALWAYS" : "NO");
+  editState.mtaMode = mtaMode;
+  document.getElementById("mta-select").value = mtaMode;
+  document.getElementById("mta-box").classList.toggle("open", mtaMode !== "NO");
+  updatePathIndicator();
 
   document.getElementById("vac-toggle").checked = editState.vacation.enabled;
   document.getElementById("vac-details").style.display = editState.vacation.enabled ? "" : "none";
@@ -718,6 +742,7 @@ function buildJSON() {
   };
 
   if (editState.mta) {
+    json.mta.mode = editState.mtaMode || "YES_ALWAYS";
     json.mta.days_to_secure = editState.mtaDaysValue || 30;
     json.mta.severance_for_signature = {
       tiers: (editState.mtaSevTiers || []).map(t => {
