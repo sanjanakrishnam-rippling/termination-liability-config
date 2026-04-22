@@ -420,6 +420,7 @@ function renderComponents() {
   const container = document.getElementById("components-container");
   container.innerHTML = editState.components.map((c, i) => {
     if (!c.tiers) c.tiers = [{ from: 0, to: null, method: "per_year", daysPerYear: 0, days: null }];
+    if (c.prorate === undefined) c.prorate = true;
     return `
     <div class="comp-card" id="comp-${i}">
       <div class="comp-header">
@@ -434,6 +435,17 @@ function renderComponents() {
           <label>Max cap (days)</label>
           <input type="number" value="${c.maxDays ?? ''}" placeholder="No max" style="max-width:140px;"
             onchange="editState.components[${i}].maxDays=this.value===''?null:+this.value;updateJSON()">
+        </div>
+        <div class="form-group" style="flex:none;padding-top:22px;">
+          <label class="switch" style="display:inline-flex;vertical-align:middle;">
+            <input type="checkbox" ${c.prorate ? 'checked' : ''} onchange="editState.components[${i}].prorate=this.checked;updateJSON()">
+            <span class="track"></span>
+          </label>
+          <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+            e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
+            On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+          </div>
         </div>
       </div>
 
@@ -729,6 +741,7 @@ function buildJSON() {
     cost_components: editState.components.map(c => {
       const obj = { key: c.key, label: c.label };
       if (c.maxDays != null) obj.max_days = c.maxDays;
+      obj.prorate_partial_years = c.prorate !== false;
       obj.tiers = (c.tiers || []).map(t => {
         const tier = { from_months: t.from, to_months: t.to, method: t.method };
         if (t.method === 'fixed') tier.days = t.days;
