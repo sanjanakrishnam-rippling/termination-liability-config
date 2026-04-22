@@ -382,7 +382,7 @@ instructions = [
     ("", body_font),
     ("UI preview (read-only):", Font(name="Calibri", size=11, bold=True, color=DARK)),
     ("See how this will look once it's live in Control Center:", body_font),
-    ("https://sanjkris.github.io/termination-liability-config/", Font(name="Calibri", size=11, underline="single", color=BLUE)),
+    ("https://sanjanakrishnam-rippling.github.io/termination-liability-config/", Font(name="Calibri", size=11, underline="single", color=BLUE)),
     ("", body_font),
 
     ("What we need from you", section_font),
