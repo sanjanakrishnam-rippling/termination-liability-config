@@ -361,7 +361,7 @@ const COUNTRY_DATA = {
     mta: false,
     mtaSevTiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }],
     components: [{
-      key: "redundancy_pay", label: "Redundancy Pay/Termination w/o Cause Pay", isDefault: true,
+      key: "redundancy_pay", label: "Redundancy pay OR Termination without cause pay", isDefault: true,
       minYearsOfService: null, minDays: null, maxDays: null,
       tiers: [{ from: 0, to: null, method: "per_year", daysPerYear: 30, days: null }]
     }],
@@ -378,7 +378,7 @@ const COUNTRY_DATA = {
     mta: false,
     mtaSevTiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }],
     components: [{
-      key: "redundancy_pay", label: "Redundancy Pay/Termination w/o Cause Pay", isDefault: true,
+      key: "redundancy_pay", label: "Redundancy pay OR Termination without cause pay", isDefault: true,
       minYearsOfService: 1, minDays: null, maxDays: 112,
       tiers: [
         { from: 0, to: 12, method: "fixed", days: 0, daysPerYear: null },
@@ -713,7 +713,7 @@ document.getElementById("contract-type").addEventListener("change", function() {
     editState.mtaDaysValue = 0;
     editState.mtaSevTiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
     editState.components = [{
-      key: "redundancy_pay", label: "Redundancy Pay/Termination w/o Cause Pay", isDefault: true,
+      key: "redundancy_pay", label: "Redundancy pay OR Termination without cause pay", isDefault: true,
       minYearsOfService: null, minDays: null, maxDays: null,
       tiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }]
     }];
