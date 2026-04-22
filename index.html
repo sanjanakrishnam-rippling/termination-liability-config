@@ -231,40 +231,13 @@ select:focus, input:focus { border-color: var(--accent); }
         <label>How many days does it take to secure the MTA, on average?</label>
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="number" id="mta-days-val" value="0" style="max-width:140px;">
-          <span style="font-size:13px;color:var(--text-secondary);">days (always fixed)</span>
+          <span style="font-size:13px;color:var(--text-secondary);">days</span>
         </div>
       </div>
 
       <div class="form-group">
         <label>How many days of severance are offered in exchange for the MTA signature?</label>
-        <div class="calc-tabs" id="mta-sev-tabs" style="max-width: 420px;">
-          <button class="active" data-type="FIXED">Fixed</button>
-          <button data-type="PER_YEAR">Per year</button>
-          <button data-type="TIERED">Tenure-based</button>
-        </div>
-        <div class="calc-content active" id="mta-sev-fixed">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="number" id="mta-sev-val" value="0" style="max-width:140px;">
-            <span style="font-size:13px;color:var(--text-secondary);">days</span>
-          </div>
-        </div>
-        <div class="calc-content" id="mta-sev-peryear">
-          <div class="form-row">
-            <div class="form-group"><label>Days per year of service</label><input type="number" id="mta-sev-py-val" value="0"></div>
-            <div class="form-group"><label>Prorate partial years?</label>
-              <select id="mta-sev-py-prorate"><option value="true">Yes</option><option value="false">No</option></select>
-            </div>
-          </div>
-        </div>
-        <div class="calc-content" id="mta-sev-tiered">
-          <table class="tier-table"><thead><tr><th>From</th><th>To</th><th>Days</th></tr></thead>
-            <tbody id="mta-sev-tier-body">
-              <tr><td><input value="0"></td><td><input value="12"></td><td><input value="0"></td></tr>
-              <tr><td><input value="12"></td><td><input value="∞"></td><td><input value="0"></td></tr>
-            </tbody>
-          </table>
-          <button class="add-btn" style="font-size:12px;" onclick="addTierRow('mta-sev-tier-body')">+ Add tier</button>
-        </div>
+        <div id="mta-sev-tiers-container"></div>
       </div>
     </div>
   </div>
@@ -272,8 +245,22 @@ select:focus, input:focus { border-color: var(--accent); }
   <!-- Severance Cost Components -->
   <div class="card">
     <div class="card-title">Severance Cost Components</div>
-    <div id="components-container"></div>
-    <button class="add-btn" id="add-comp-btn" style="margin-top: 4px;">+ Add component</button>
+    <div id="remaining-contract-toggle" style="display:none;margin-bottom:16px;">
+      <div class="toggle-row" onclick="document.getElementById('remaining-contract-cb').click();" style="cursor:pointer;">
+        <div>
+          <div class="t-label">Use remaining days on contract as severance?</div>
+          <div class="t-sub">If enabled, severance = contract end date minus termination date. The tier table below is ignored.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="remaining-contract-cb"><span class="track"></span></label>
+      </div>
+      <div id="remaining-contract-info" style="display:none;margin-top:12px;padding:12px 16px;background:#e8f5e9;border-radius:8px;font-size:13px;color:#2e7d32;">
+        Severance will be calculated as: <strong>contract end date − termination date</strong>
+      </div>
+    </div>
+    <div id="components-wrapper">
+      <div id="components-container"></div>
+      <button class="add-btn" id="add-comp-btn" style="margin-top: 4px;">+ Add component</button>
+    </div>
   </div>
 
   <!-- Vacation Payout -->
@@ -295,10 +282,7 @@ select:focus, input:focus { border-color: var(--accent); }
         </select>
       </div>
       <div id="vac-fixed-days" style="display:none;margin-top:12px;">
-        <div class="form-group">
-          <label>Number of days</label>
-          <input type="number" id="vac-fixed-val" value="5" style="max-width:140px;">
-        </div>
+        <div id="vac-tiers-container"></div>
       </div>
     </div>
   </div>
@@ -353,8 +337,13 @@ const COUNTRY_DATA = {
       { name: "13th Month Salary", mandatory: true, notice: true, severance: false, vacationPay: false },
     ],
     mta: false,
-    components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "PER_YEAR", value: 30, unit: "days", prorated: true, isDefault: true }],
-    vacation: { enabled: true, minimum: "ALL_ACCRUED" }
+    mtaSevTiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }],
+    components: [{
+      key: "redundancy_pay", label: "Redundancy Pay", isDefault: true,
+      minYearsOfService: null, minDays: null, maxDays: null,
+      tiers: [{ from: 0, to: null, method: "per_year", daysPerYear: 30, days: null }]
+    }],
+    vacation: { enabled: true, minimum: "ALL_ACCRUED", tiers: [{ from: 0, to: null, method: "fixed", days: 5, daysPerYear: null }] }
   },
   AU: {
     name: "Australia",
@@ -365,10 +354,20 @@ const COUNTRY_DATA = {
       { name: "On-Target Commission", mandatory: false, notice: false, severance: false, vacationPay: false },
     ],
     mta: false,
-    components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "TIERED", unit: "weeks", isDefault: true,
-      tiers: [{ from: 0, to: 12, value: 0 }, { from: 12, to: 24, value: 4 }, { from: 24, to: 36, value: 6 },
-              { from: 36, to: 48, value: 7 }, { from: 48, to: 60, value: 8 }, { from: 60, to: null, value: 12 }] }],
-    vacation: { enabled: true, minimum: "ALL_ACCRUED" }
+    mtaSevTiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }],
+    components: [{
+      key: "redundancy_pay", label: "Redundancy Pay", isDefault: true,
+      minYearsOfService: 1, minDays: null, maxDays: 112,
+      tiers: [
+        { from: 0, to: 12, method: "fixed", days: 0, daysPerYear: null },
+        { from: 12, to: 24, method: "fixed", days: 28, daysPerYear: null },
+        { from: 24, to: 36, method: "fixed", days: 42, daysPerYear: null },
+        { from: 36, to: 48, method: "fixed", days: 49, daysPerYear: null },
+        { from: 48, to: 60, method: "fixed", days: 56, daysPerYear: null },
+        { from: 60, to: null, method: "fixed", days: 84, daysPerYear: null }
+      ]
+    }],
+    vacation: { enabled: true, minimum: "ALL_ACCRUED", tiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }] }
   },
 };
 
@@ -409,61 +408,56 @@ function toggleCV(idx, field) {
 function renderComponents() {
   const container = document.getElementById("components-container");
   container.innerHTML = editState.components.map((c, i) => {
-    const id = `comp-${i}`;
+    if (!c.tiers) c.tiers = [{ from: 0, to: null, method: "per_year", daysPerYear: 0, days: null }];
     return `
-    <div class="comp-card" id="${id}">
+    <div class="comp-card" id="comp-${i}">
       <div class="comp-header">
         <div class="cname">${c.isDefault ? c.label : `<input type="text" value="${c.label}" style="border:none;font-weight:600;font-size:14px;padding:0;font-family:inherit;background:transparent;outline:none;width:280px;" onchange="updateCompLabel(${i},this.value)">`}</div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${c.isDefault ? '<span class="default-badge">Default</span>' : `<button class="remove-btn" onclick="removeComp(${i})">Remove</button>`}
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Calculation Type</label>
-        <div class="calc-tabs">
-          <button ${c.type==='FIXED'?'class="active"':''} onclick="setCompType(${i},'FIXED')">Fixed</button>
-          <button ${c.type==='PER_YEAR'?'class="active"':''} onclick="setCompType(${i},'PER_YEAR')">Per year of service</button>
-          <button ${c.type==='TIERED'?'class="active"':''} onclick="setCompType(${i},'TIERED')">Tenure-based</button>
+
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label>Max cap (days)</label>
+          <input type="number" value="${c.maxDays ?? ''}" placeholder="No max" style="max-width:140px;"
+            onchange="editState.components[${i}].maxDays=this.value===''?null:+this.value;updateJSON()">
         </div>
       </div>
-      ${renderCalcContent(c, i)}
+
+      <table class="tier-table">
+        <thead><tr><th>From (tenure months)</th><th>To (tenure months)</th><th>Method</th><th>Value</th><th></th></tr></thead>
+        <tbody>${c.tiers.map((t, ti) => `<tr>
+          <td><input value="${t.from}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].from=+this.value;updateJSON()"></td>
+          <td><input value="${t.to === null ? 'No limit' : t.to}" style="width:90px;" onchange="editState.components[${i}].tiers[${ti}].to=this.value==='No limit'?null:+this.value;updateJSON()"></td>
+          <td><select style="width:150px;" onchange="switchTierMethod(${i},${ti},this.value)">
+            <option value="fixed" ${t.method==='fixed'?'selected':''}>Fixed</option>
+            <option value="per_year" ${t.method==='per_year'?'selected':''}>Per year of service</option>
+          </select></td>
+          <td>${t.method === 'fixed'
+            ? `<input value="${t.days ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].days=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days</span>`
+            : `<input value="${t.daysPerYear ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].daysPerYear=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days per year of service</span>`
+          }</td>
+          <td>${c.tiers.length > 1 ? `<button class="remove-btn" onclick="removeTier(${i},${ti})">✕</button>` : ''}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+      <button class="add-btn" style="font-size:12px;" onclick="addCompTier(${i})">+ Add tier</button>
     </div>`;
   }).join("");
 }
 
-function renderCalcContent(c, i) {
-  if (c.type === "FIXED") {
-    return `<div class="form-row"><div class="form-group"><label>Days of severance</label>
-      <input type="number" value="${c.value||0}" onchange="editState.components[${i}].value=+this.value;updateJSON()"></div></div>`;
-  }
-  if (c.type === "PER_YEAR") {
-    return `<div class="form-row">
-      <div class="form-group"><label>Days per year of service</label>
-        <input type="number" value="${c.value||0}" onchange="editState.components[${i}].value=+this.value;updateJSON()"></div>
-      <div class="form-group"><label>Prorate partial years?</label>
-        <select onchange="editState.components[${i}].prorated=this.value==='true';updateJSON()">
-          <option value="true" ${c.prorated?'selected':''}>Yes</option><option value="false" ${!c.prorated?'selected':''}>No</option></select></div>
-    </div>`;
-  }
-  if (c.type === "TIERED") {
-    const tiers = c.tiers || [{ from: 0, to: 24, value: 0 }, { from: 24, to: null, value: 0 }];
-    c.tiers = tiers;
-    return `<table class="tier-table"><thead><tr><th>From (months)</th><th>To (months)</th><th>Days</th></tr></thead>
-      <tbody>${tiers.map((t, ti) => `<tr>
-        <td><input value="${t.from}" onchange="editState.components[${i}].tiers[${ti}].from=+this.value;updateJSON()"></td>
-        <td><input value="${t.to === null ? '∞' : t.to}" onchange="editState.components[${i}].tiers[${ti}].to=this.value==='∞'?null:+this.value;updateJSON()"></td>
-        <td><input value="${t.value}" onchange="editState.components[${i}].tiers[${ti}].value=+this.value;updateJSON()"></td>
-      </tr>`).join("")}</tbody></table>
-      <button class="add-btn" style="font-size:12px;" onclick="addCompTier(${i})">+ Add tier</button>`;
-  }
-  return "";
+function switchTierMethod(ci, ti, method) {
+  var tier = editState.components[ci].tiers[ti];
+  tier.method = method;
+  if (method === 'fixed') { tier.days = tier.days ?? 0; tier.daysPerYear = null; }
+  else { tier.daysPerYear = tier.daysPerYear ?? 0; tier.days = null; }
+  renderComponents();
+  updateJSON();
 }
 
-function setCompType(i, type) {
-  editState.components[i].type = type;
-  if (type === "FIXED") { editState.components[i].value = editState.components[i].value || 0; delete editState.components[i].tiers; }
-  if (type === "PER_YEAR") { editState.components[i].value = editState.components[i].value || 0; editState.components[i].prorated = editState.components[i].prorated ?? true; delete editState.components[i].tiers; }
-  if (type === "TIERED") { editState.components[i].tiers = editState.components[i].tiers || [{ from: 0, to: 24, value: 0 }, { from: 24, to: null, value: 0 }]; }
+function removeTier(ci, ti) {
+  editState.components[ci].tiers.splice(ti, 1);
   renderComponents();
   updateJSON();
 }
@@ -477,7 +471,7 @@ function addCompTier(i) {
   const last = tiers[tiers.length - 1];
   const prevTo = last.to || 60;
   last.to = prevTo;
-  tiers.push({ from: prevTo, to: null, value: 0 });
+  tiers.push({ from: prevTo, to: null, method: "per_year", daysPerYear: 0, days: null });
   renderComponents();
   updateJSON();
 }
@@ -503,20 +497,54 @@ document.getElementById("mta-toggle").addEventListener("change", function() {
 
 document.getElementById("mta-days-val").addEventListener("change", function() { editState.mtaDaysValue = +this.value; updateJSON(); });
 
-document.getElementById("mta-sev-tabs").addEventListener("click", function(e) {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-  this.querySelectorAll("button").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  const type = btn.dataset.type;
-  editState.mtaSevType = type;
-  document.getElementById("mta-sev-fixed").classList.toggle("active", type === "FIXED");
-  document.getElementById("mta-sev-peryear").classList.toggle("active", type === "PER_YEAR");
-  document.getElementById("mta-sev-tiered").classList.toggle("active", type === "TIERED");
-  updateJSON();
-});
+function renderMtaSevTiers() {
+  if (!editState.mtaSevTiers) editState.mtaSevTiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
+  const tiers = editState.mtaSevTiers;
+  const container = document.getElementById("mta-sev-tiers-container");
+  container.innerHTML = `
+    <table class="tier-table">
+      <thead><tr><th>From (tenure months)</th><th>To (tenure months)</th><th>Method</th><th>Value</th><th></th></tr></thead>
+      <tbody>${tiers.map((t, ti) => `<tr>
+        <td><input value="${t.from}" style="width:70px;" onchange="editState.mtaSevTiers[${ti}].from=+this.value;updateJSON()"></td>
+        <td><input value="${t.to === null ? 'No limit' : t.to}" style="width:90px;" onchange="editState.mtaSevTiers[${ti}].to=this.value==='No limit'?null:+this.value;updateJSON()"></td>
+        <td><select style="width:150px;" onchange="switchMtaSevMethod(${ti},this.value)">
+          <option value="fixed" ${t.method==='fixed'?'selected':''}>Fixed</option>
+          <option value="per_year" ${t.method==='per_year'?'selected':''}>Per year of service</option>
+        </select></td>
+        <td>${t.method === 'fixed'
+          ? `<input value="${t.days ?? 0}" style="width:70px;" onchange="editState.mtaSevTiers[${ti}].days=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days</span>`
+          : `<input value="${t.daysPerYear ?? 0}" style="width:70px;" onchange="editState.mtaSevTiers[${ti}].daysPerYear=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days per year of service</span>`
+        }</td>
+        <td>${tiers.length > 1 ? `<button class="remove-btn" onclick="removeMtaSevTier(${ti})">✕</button>` : ''}</td>
+      </tr>`).join("")}</tbody>
+    </table>
+    <button class="add-btn" style="font-size:12px;" onclick="addMtaSevTier()">+ Add tier</button>`;
+}
 
-document.getElementById("mta-sev-val").addEventListener("change", function() { editState.mtaSevDays = +this.value; updateJSON(); });
+function switchMtaSevMethod(ti, method) {
+  var tier = editState.mtaSevTiers[ti];
+  tier.method = method;
+  if (method === 'fixed') { tier.days = tier.days ?? 0; tier.daysPerYear = null; }
+  else { tier.daysPerYear = tier.daysPerYear ?? 0; tier.days = null; }
+  renderMtaSevTiers();
+  updateJSON();
+}
+
+function removeMtaSevTier(ti) {
+  editState.mtaSevTiers.splice(ti, 1);
+  renderMtaSevTiers();
+  updateJSON();
+}
+
+function addMtaSevTier() {
+  const tiers = editState.mtaSevTiers;
+  const last = tiers[tiers.length - 1];
+  const prevTo = last.to || 60;
+  last.to = prevTo;
+  tiers.push({ from: prevTo, to: null, method: "fixed", days: 0, daysPerYear: null });
+  renderMtaSevTiers();
+  updateJSON();
+}
 
 // ===================== VACATION =====================
 document.getElementById("vac-toggle").addEventListener("change", function() {
@@ -528,18 +556,90 @@ document.getElementById("vac-toggle").addEventListener("change", function() {
 document.getElementById("vac-min").addEventListener("change", function() {
   editState.vacation.minimum = this.value;
   document.getElementById("vac-fixed-days").style.display = this.value === "FIXED" ? "" : "none";
+  if (this.value === "FIXED") renderVacTiers();
   updateJSON();
 });
 
-document.getElementById("vac-fixed-val").addEventListener("change", function() {
-  editState.vacation.fixedDays = +this.value;
+function renderVacTiers() {
+  if (!editState.vacation.tiers) editState.vacation.tiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
+  const tiers = editState.vacation.tiers;
+  const container = document.getElementById("vac-tiers-container");
+  container.innerHTML = `
+    <table class="tier-table">
+      <thead><tr><th>From (tenure months)</th><th>To (tenure months)</th><th>Method</th><th>Value</th><th></th></tr></thead>
+      <tbody>${tiers.map((t, ti) => `<tr>
+        <td><input value="${t.from}" style="width:70px;" onchange="editState.vacation.tiers[${ti}].from=+this.value;updateJSON()"></td>
+        <td><input value="${t.to === null ? 'No limit' : t.to}" style="width:90px;" onchange="editState.vacation.tiers[${ti}].to=this.value==='No limit'?null:+this.value;updateJSON()"></td>
+        <td><select style="width:150px;" onchange="switchVacMethod(${ti},this.value)">
+          <option value="fixed" ${t.method==='fixed'?'selected':''}>Fixed</option>
+          <option value="per_year" ${t.method==='per_year'?'selected':''}>Per year of service</option>
+        </select></td>
+        <td>${t.method === 'fixed'
+          ? `<input value="${t.days ?? 0}" style="width:70px;" onchange="editState.vacation.tiers[${ti}].days=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days</span>`
+          : `<input value="${t.daysPerYear ?? 0}" style="width:70px;" onchange="editState.vacation.tiers[${ti}].daysPerYear=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days per year of service</span>`
+        }</td>
+        <td>${tiers.length > 1 ? `<button class="remove-btn" onclick="removeVacTier(${ti})">✕</button>` : ''}</td>
+      </tr>`).join("")}</tbody>
+    </table>
+    <button class="add-btn" style="font-size:12px;" onclick="addVacTier()">+ Add tier</button>`;
+}
+
+function switchVacMethod(ti, method) {
+  var tier = editState.vacation.tiers[ti];
+  tier.method = method;
+  if (method === 'fixed') { tier.days = tier.days ?? 0; tier.daysPerYear = null; }
+  else { tier.daysPerYear = tier.daysPerYear ?? 0; tier.days = null; }
+  renderVacTiers();
+  updateJSON();
+}
+
+function removeVacTier(ti) {
+  editState.vacation.tiers.splice(ti, 1);
+  renderVacTiers();
+  updateJSON();
+}
+
+function addVacTier() {
+  const tiers = editState.vacation.tiers;
+  const last = tiers[tiers.length - 1];
+  const prevTo = last.to || 60;
+  last.to = prevTo;
+  tiers.push({ from: prevTo, to: null, method: "fixed", days: 0, daysPerYear: null });
+  renderVacTiers();
+  updateJSON();
+}
+
+// ===================== REMAINING CONTRACT DAYS =====================
+document.getElementById("remaining-contract-cb").addEventListener("change", function() {
+  editState.useRemainingContractDays = this.checked;
+  document.getElementById("remaining-contract-info").style.display = this.checked ? "" : "none";
+  document.getElementById("components-wrapper").style.display = this.checked ? "none" : "";
   updateJSON();
 });
+
+function updateRemainingContractToggle() {
+  var isFixedTerm = document.getElementById("contract-type").value === "FIXED_TERM";
+  document.getElementById("remaining-contract-toggle").style.display = isFixedTerm ? "" : "none";
+  if (!isFixedTerm) {
+    editState.useRemainingContractDays = false;
+    document.getElementById("remaining-contract-cb").checked = false;
+    document.getElementById("remaining-contract-info").style.display = "none";
+    document.getElementById("components-wrapper").style.display = "";
+  } else {
+    document.getElementById("remaining-contract-cb").checked = editState.useRemainingContractDays || false;
+    document.getElementById("remaining-contract-info").style.display = editState.useRemainingContractDays ? "" : "none";
+    document.getElementById("components-wrapper").style.display = editState.useRemainingContractDays ? "none" : "";
+  }
+}
 
 // ===================== ADD COMPONENT =====================
 document.getElementById("add-comp-btn").addEventListener("click", function() {
   compCounter++;
-  editState.components.push({ key: "custom_" + compCounter, label: "New Component", type: "FIXED", value: 0, unit: "days", isDefault: false });
+  editState.components.push({
+    key: "custom_" + compCounter, label: "New Component", isDefault: false,
+    minYearsOfService: null, minDays: null, maxDays: null,
+    tiers: [{ from: 0, to: null, method: "per_year", daysPerYear: 0, days: null }]
+  });
   renderComponents();
   updateJSON();
 });
@@ -557,16 +657,18 @@ document.getElementById("contract-type").addEventListener("change", function() {
   if (this.value === "FIXED_TERM") {
     editState.mta = false;
     editState.mtaDaysValue = 0;
-    editState.mtaSevType = "FIXED";
-    editState.mtaSevDays = 0;
-    editState.components = [{ key: "redundancy_pay", label: "Redundancy Pay", type: "FIXED", value: 0, unit: "days", isDefault: true }];
+    editState.mtaSevTiers = [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }];
+    editState.components = [{
+      key: "redundancy_pay", label: "Redundancy Pay", isDefault: true,
+      minYearsOfService: null, minDays: null, maxDays: null,
+      tiers: [{ from: 0, to: null, method: "fixed", days: 0, daysPerYear: null }]
+    }];
     editState.vacation = { enabled: false, minimum: "ALL_ACCRUED" };
   } else {
     var fresh = getCountryState(state.country);
     editState.mta = fresh.mta;
     editState.mtaDaysValue = fresh.mtaDaysValue;
-    editState.mtaSevType = fresh.mtaSevType;
-    editState.mtaSevDays = fresh.mtaSevDays;
+    editState.mtaSevTiers = fresh.mtaSevTiers;
     editState.components = fresh.components;
     editState.vacation = fresh.vacation;
   }
@@ -576,6 +678,7 @@ document.getElementById("contract-type").addEventListener("change", function() {
 function loadCountry() {
   renderCompVars();
   renderComponents();
+  updateRemainingContractToggle();
 
   document.getElementById("mta-toggle").checked = editState.mta;
   document.getElementById("mta-box").classList.toggle("open", editState.mta);
@@ -584,17 +687,10 @@ function loadCountry() {
   document.getElementById("vac-details").style.display = editState.vacation.enabled ? "" : "none";
   document.getElementById("vac-min").value = editState.vacation.minimum;
   document.getElementById("vac-fixed-days").style.display = editState.vacation.minimum === "FIXED" ? "" : "none";
+  if (editState.vacation.minimum === "FIXED") renderVacTiers();
 
   document.getElementById("mta-days-val").value = editState.mtaDaysValue || 0;
-  document.getElementById("mta-sev-val").value = editState.mtaSevDays || 0;
-
-  var sevType = editState.mtaSevType || "FIXED";
-  document.getElementById("mta-sev-tabs").querySelectorAll("button").forEach(function(b) {
-    b.classList.toggle("active", b.dataset.type === sevType);
-  });
-  document.getElementById("mta-sev-fixed").classList.toggle("active", sevType === "FIXED");
-  document.getElementById("mta-sev-peryear").classList.toggle("active", sevType === "PER_YEAR");
-  document.getElementById("mta-sev-tiered").classList.toggle("active", sevType === "TIERED");
+  renderMtaSevTiers();
 
   updateJSON();
 }
@@ -605,12 +701,16 @@ function buildJSON() {
     country_code: state.country,
     contract_types: [document.getElementById("contract-type").value],
     mta: { is_default: editState.mta },
+    use_remaining_contract_days: editState.useRemainingContractDays || false,
     cost_components: editState.components.map(c => {
-      const obj = { key: c.key, label: c.label, type: c.type, unit: c.unit || "days" };
-      if (c.type === "FIXED") obj.value = c.value;
-      if (c.type === "PER_YEAR") { obj.value = c.value; obj.prorated = c.prorated; }
-      if (c.type === "TIERED") obj.tenure_tiers = (c.tiers || []).map(t => ({ min_months: t.from, max_months: t.to, value: t.value }));
-      if (c.minTenure) obj.min_tenure_months = c.minTenure;
+      const obj = { key: c.key, label: c.label };
+      if (c.maxDays != null) obj.max_days = c.maxDays;
+      obj.tiers = (c.tiers || []).map(t => {
+        const tier = { from_months: t.from, to_months: t.to, method: t.method };
+        if (t.method === 'fixed') tier.days = t.days;
+        else tier.days_per_year = t.daysPerYear;
+        return tier;
+      });
       return obj;
     }),
     vacation_payout: { enabled: editState.vacation.enabled },
@@ -619,12 +719,26 @@ function buildJSON() {
 
   if (editState.mta) {
     json.mta.days_to_secure = editState.mtaDaysValue || 30;
-    json.mta.severance_for_signature = { type: editState.mtaSevType || "FIXED", value: editState.mtaSevDays || 90 };
+    json.mta.severance_for_signature = {
+      tiers: (editState.mtaSevTiers || []).map(t => {
+        const tier = { from_months: t.from, to_months: t.to, method: t.method };
+        if (t.method === 'fixed') tier.days = t.days;
+        else tier.days_per_year = t.daysPerYear;
+        return tier;
+      })
+    };
   }
 
   if (editState.vacation.enabled) {
-    json.vacation_payout.minimum = editState.vacation.minimum;
-    if (editState.vacation.minimum === "FIXED") json.vacation_payout.fixed_days = editState.vacation.fixedDays || 5;
+    json.vacation_payout.statutory_minimum = editState.vacation.minimum;
+    if (editState.vacation.minimum === "FIXED") {
+      json.vacation_payout.tiers = (editState.vacation.tiers || []).map(t => {
+        const tier = { from_months: t.from, to_months: t.to, method: t.method };
+        if (t.method === 'fixed') tier.days = t.days;
+        else tier.days_per_year = t.daysPerYear;
+        return tier;
+      });
+    }
   }
 
   return json;
@@ -672,10 +786,10 @@ function addTierRow(tbodyId) {
   const rows = tbody.querySelectorAll("tr");
   const lastRow = rows[rows.length - 1];
   const inputs = lastRow.querySelectorAll("input");
-  const prevTo = inputs[1].value === "∞" ? 60 : parseInt(inputs[1].value);
+  const prevTo = inputs[1].value === "No limit" ? 60 : parseInt(inputs[1].value);
   inputs[1].value = prevTo;
   const tr = document.createElement("tr");
-  tr.innerHTML = `<td><input value="${prevTo}"></td><td><input value="∞"></td><td><input value=""></td>`;
+  tr.innerHTML = `<td><input value="${prevTo}"></td><td><input value="No limit"></td><td><input value=""></td>`;
   tbody.appendChild(tr);
 }
 
