@@ -147,7 +147,7 @@ select:focus, input:focus { border-color: var(--accent); }
 
 /* Transition helpers */
 .slide-down { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease, padding 0.35s ease; margin-top: 0; padding: 0 16px; }
-.slide-down.open { max-height: 600px; opacity: 1; margin-top: 16px; padding: 16px; }
+.slide-down.open { max-height: 1200px; opacity: 1; margin-top: 16px; padding: 16px; }
 </style>
 </head>
 <body>
@@ -239,7 +239,7 @@ select:focus, input:focus { border-color: var(--accent); }
       </div>
 
       <div id="mta-remaining-contract-toggle" style="display:none;margin-bottom:16px;">
-        <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'){document.getElementById('mta-remaining-contract-cb').click();}" style="cursor:pointer;">
+        <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'&&!event.target.closest('.switch')){document.getElementById('mta-remaining-contract-cb').click();}" style="cursor:pointer;">
           <div>
             <div class="t-label">Use remaining days on contract as MTA severance?</div>
             <div class="t-sub">If enabled, MTA severance = contract end date minus termination date. The tier table below is ignored.</div>
@@ -283,7 +283,7 @@ select:focus, input:focus { border-color: var(--accent); }
       These cost components only apply when MTA is not used for the employee. If MTA applies, the severance above is used instead.
     </div>
     <div id="remaining-contract-toggle" style="display:none;margin-bottom:16px;">
-      <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'){document.getElementById('remaining-contract-cb').click();}" style="cursor:pointer;">
+      <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'&&!event.target.closest('.switch')){document.getElementById('remaining-contract-cb').click();}" style="cursor:pointer;">
         <div>
           <div class="t-label">Use remaining days on contract as severance?</div>
           <div class="t-sub">If enabled, severance = contract end date minus termination date. The tier table below is ignored.</div>
