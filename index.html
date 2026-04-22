@@ -184,7 +184,7 @@ select:focus, input:focus { border-color: var(--accent); }
   <div class="card">
     <div class="card-title">Compensation Variables — <span id="cv-country-name">Philippines</span></div>
     <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-      For each compensation variable, indicate whether it is included in gross pay for working notice and severance calculations. New variables default to "No" for both.
+      For each compensation variable, indicate whether it is included in gross pay for working notice, severance, and vacation payout calculations. New variables default to "No" for all.
     </p>
     <table class="cv-table">
       <thead>
@@ -192,6 +192,7 @@ select:focus, input:focus { border-color: var(--accent); }
           <th>Compensation Variable</th>
           <th style="text-align: center;">Included in<br>Working Notice?</th>
           <th style="text-align: center;">Included in<br>Severance?</th>
+          <th style="text-align: center;">Included in<br>Vacation Pay?</th>
         </tr>
       </thead>
       <tbody id="cv-table-body"></tbody>
@@ -338,18 +339,18 @@ const COUNTRY_DATA = {
   PH: {
     name: "Philippines",
     compVars: [
-      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true },
-      { name: "Target Bonus", mandatory: false, notice: true, severance: false },
-      { name: "Signing Bonus", mandatory: false, notice: true, severance: false },
-      { name: "On-Target Commission", mandatory: false, notice: true, severance: false },
-      { name: "Rice Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Uniform & Clothing Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Laundry Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Medical Cash Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Internet Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Productivity Incentive Allowance", mandatory: false, notice: true, severance: false },
-      { name: "Christmas / Anniversary Gift", mandatory: false, notice: true, severance: false },
-      { name: "13th Month Salary", mandatory: true, notice: true, severance: false },
+      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true, vacationPay: true },
+      { name: "Target Bonus", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Signing Bonus", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "On-Target Commission", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Rice Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Uniform & Clothing Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Laundry Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Medical Cash Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Internet Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Productivity Incentive Allowance", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "Christmas / Anniversary Gift", mandatory: false, notice: true, severance: false, vacationPay: false },
+      { name: "13th Month Salary", mandatory: true, notice: true, severance: false, vacationPay: false },
     ],
     mta: false,
     components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "PER_YEAR", value: 30, unit: "days", prorated: true, isDefault: true }],
@@ -358,10 +359,10 @@ const COUNTRY_DATA = {
   AU: {
     name: "Australia",
     compVars: [
-      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true },
-      { name: "Target Bonus", mandatory: false, notice: false, severance: false },
-      { name: "Superannuation", mandatory: true, notice: false, severance: false },
-      { name: "On-Target Commission", mandatory: false, notice: false, severance: false },
+      { name: "Gross Base Salary", mandatory: true, notice: true, severance: true, vacationPay: true },
+      { name: "Target Bonus", mandatory: false, notice: false, severance: false, vacationPay: false },
+      { name: "Superannuation", mandatory: true, notice: false, severance: false, vacationPay: false },
+      { name: "On-Target Commission", mandatory: false, notice: false, severance: false, vacationPay: false },
     ],
     mta: false,
     components: [{ key: "redundancy_pay", label: "Redundancy Pay", type: "TIERED", unit: "weeks", isDefault: true,
@@ -394,6 +395,7 @@ function renderCompVars() {
       <td class="vname">${v.name} ${v.mandatory ? '<span class="m-badge">Mandatory</span>' : '<span class="o-badge">Optional</span>'}</td>
       <td style="text-align:center;"><button class="pill-toggle ${v.notice ? 'on' : 'off'}" onclick="toggleCV(${i},'notice')">${v.notice ? 'Yes' : 'No'}</button></td>
       <td style="text-align:center;"><button class="pill-toggle ${v.severance ? 'on' : 'off'}" onclick="toggleCV(${i},'severance')">${v.severance ? 'Yes' : 'No'}</button></td>
+      <td style="text-align:center;"><button class="pill-toggle ${v.vacationPay ? 'on' : 'off'}" onclick="toggleCV(${i},'vacationPay')">${v.vacationPay ? 'Yes' : 'No'}</button></td>
     </tr>
   `).join("");
 }
@@ -612,7 +614,7 @@ function buildJSON() {
       return obj;
     }),
     vacation_payout: { enabled: editState.vacation.enabled },
-    compensation_metadata: editState.compVars.map(v => ({ variable: v.name, included_in_working_notice: v.notice, included_in_severance: v.severance })),
+    compensation_metadata: editState.compVars.map(v => ({ variable: v.name, included_in_working_notice: v.notice, included_in_severance: v.severance, included_in_vacation_pay: v.vacationPay })),
   };
 
   if (editState.mta) {
