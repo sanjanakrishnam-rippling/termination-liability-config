@@ -238,20 +238,35 @@ select:focus, input:focus { border-color: var(--accent); }
         </div>
       </div>
 
-      <div class="form-group">
-        <label>How many days of severance are offered in exchange for the MTA signature?</label>
-        <div style="margin-bottom:10px;">
-          <label class="switch" style="display:inline-flex;vertical-align:middle;">
-            <input type="checkbox" id="mta-prorate-cb" checked onchange="editState.mtaProrate=this.checked;updateJSON()">
-            <span class="track"></span>
-          </label>
-          <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
-            e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
-            On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+      <div id="mta-remaining-contract-toggle" style="display:none;margin-bottom:16px;">
+        <div class="toggle-row" onclick="if(event.target.tagName!=='INPUT'){document.getElementById('mta-remaining-contract-cb').click();}" style="cursor:pointer;">
+          <div>
+            <div class="t-label">Use remaining days on contract as MTA severance?</div>
+            <div class="t-sub">If enabled, MTA severance = contract end date minus termination date. The tier table below is ignored.</div>
           </div>
+          <label class="switch"><input type="checkbox" id="mta-remaining-contract-cb"><span class="track"></span></label>
         </div>
-        <div id="mta-sev-tiers-container"></div>
+        <div id="mta-remaining-contract-info" style="display:none;margin-top:12px;padding:12px 16px;background:#e8f5e9;border-radius:8px;font-size:13px;color:#2e7d32;">
+          MTA severance will be calculated as: <strong>contract end date − termination date</strong>
+        </div>
+      </div>
+
+      <div id="mta-tiers-wrapper">
+        <div class="form-group">
+          <label>How many days of severance are offered in exchange for the MTA signature?</label>
+          <div style="margin-bottom:10px;">
+            <label class="switch" style="display:inline-flex;vertical-align:middle;">
+              <input type="checkbox" id="mta-prorate-cb" checked onchange="editState.mtaProrate=this.checked;updateJSON()">
+              <span class="track"></span>
+            </label>
+            <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+              e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
+              On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+            </div>
+          </div>
+          <div id="mta-sev-tiers-container"></div>
+        </div>
       </div>
 
       <div style="margin-top:14px;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:12px;color:#9a3412;">
@@ -669,18 +684,37 @@ document.getElementById("remaining-contract-cb").addEventListener("change", func
   updateJSON();
 });
 
+document.getElementById("mta-remaining-contract-cb").addEventListener("change", function() {
+  editState.mtaUseRemainingContractDays = this.checked;
+  document.getElementById("mta-remaining-contract-info").style.display = this.checked ? "" : "none";
+  document.getElementById("mta-tiers-wrapper").style.display = this.checked ? "none" : "";
+  updateJSON();
+});
+
 function updateRemainingContractToggle() {
   var isFixedTerm = document.getElementById("contract-type").value === "FIXED_TERM";
+
   document.getElementById("remaining-contract-toggle").style.display = isFixedTerm ? "" : "none";
+  document.getElementById("mta-remaining-contract-toggle").style.display = isFixedTerm ? "" : "none";
+
   if (!isFixedTerm) {
     editState.useRemainingContractDays = false;
     document.getElementById("remaining-contract-cb").checked = false;
     document.getElementById("remaining-contract-info").style.display = "none";
     document.getElementById("components-wrapper").style.display = "";
+
+    editState.mtaUseRemainingContractDays = false;
+    document.getElementById("mta-remaining-contract-cb").checked = false;
+    document.getElementById("mta-remaining-contract-info").style.display = "none";
+    document.getElementById("mta-tiers-wrapper").style.display = "";
   } else {
     document.getElementById("remaining-contract-cb").checked = editState.useRemainingContractDays || false;
     document.getElementById("remaining-contract-info").style.display = editState.useRemainingContractDays ? "" : "none";
     document.getElementById("components-wrapper").style.display = editState.useRemainingContractDays ? "none" : "";
+
+    document.getElementById("mta-remaining-contract-cb").checked = editState.mtaUseRemainingContractDays || false;
+    document.getElementById("mta-remaining-contract-info").style.display = editState.mtaUseRemainingContractDays ? "" : "none";
+    document.getElementById("mta-tiers-wrapper").style.display = editState.mtaUseRemainingContractDays ? "none" : "";
   }
 }
 
@@ -780,6 +814,7 @@ function buildJSON() {
   if (editState.mta) {
     json.mta.mode = editState.mtaMode || "YES_ALWAYS";
     json.mta.days_to_secure = editState.mtaDaysValue || 30;
+    json.mta.use_remaining_contract_days = editState.mtaUseRemainingContractDays || false;
     json.mta.severance_for_signature = {
       tiers: (editState.mtaSevTiers || []).map(t => {
         const tier = { from_months: t.from, to_months: t.to, method: t.method };
