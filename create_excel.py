@@ -121,19 +121,19 @@ def build_country_sheet(ws, name, data):
 
     # SECTION 1: General Inputs
     row = add_section_header(ws, row, "1. General Inputs")
-    row = add_input_row(ws, row, "Country", data["country"], data.get("country_hint", ""))
+    row = add_input_row(ws, row, "Country", data["country"],
+                        data.get("country_hint", "Enter country name and code, e.g., 'Germany (DE)'"))
 
     contract_row = row
     row = add_input_row(ws, row, "Contract Type", data["contract_type"],
                         "Indefinite / Fixed Term")
     add_dropdown(ws, ws.cell(row=contract_row, column=2).coordinate, DV_CONTRACT_TYPE)
 
-    if data.get("entity_type"):
-        row = add_input_row(ws, row, "Entity Type", data["entity_type"],
-                            "Only for countries with multiple employment models")
-    else:
-        row = add_input_row(ws, row, "Entity Type", "N/A",
-                            "Only for DE, FR, BE — leave N/A otherwise", is_input=False)
+    row = add_input_row(ws, row, "Entity Type", data.get("entity_type", "All"),
+                        "Only for applicable countries like DE, FR — Leave as All if it does not apply")
+
+    row = add_input_row(ws, row, "Province", data.get("province", "All"),
+                        "Only applicable for countries with different rules per province — Leave as All if it does not apply")
 
     mta_row = row
     row = add_input_row(ws, row, "Is MTA the default practice?", data["mta_default"],
@@ -141,8 +141,46 @@ def build_country_sheet(ws, name, data):
     add_dropdown(ws, ws.cell(row=mta_row, column=2).coordinate, DV_MTA_DEFAULT)
     row += 1
 
-    # SECTION 2: Severance Cost Components
-    row = add_section_header(ws, row, "2. Severance Cost Components")
+    # SECTION 2: MTA Configuration
+    row = add_section_header(ws, row, "2. MTA Configuration")
+    style_cell(ws, row, 1,
+               "Fill only if Is MTA the default practice = 'Yes — always' OR 'Yes — above tenure threshold'",
+               font=hint_font)
+    row += 1
+    row = add_input_row(ws, row, "How many days does it take to secure an MTA, on average? (excl. notice period days)",
+                        data.get("mta_days", ""), "Days")
+    row += 1
+    mta_tier_label = Font(name="Calibri", size=11, bold=True, color=DARK)
+    style_cell(ws, row, 1, "How many days of severance are offered in exchange for the MTA signature?", font=mta_tier_label)
+    row += 1
+    style_cell(ws, row, 1,
+               "Fill the tier table below and max cap. Use 'No Limit' if the tenure range has no upper limit.",
+               font=hint_font)
+    row += 1
+    style_cell(ws, row, 1,
+               "If severance days remain the same within a range, use Fixed. If they vary by years of service, use Per Year of Service.",
+               font=hint_font)
+    row += 1
+    mta_prorate_row = row
+    row = add_input_row(ws, row, "Prorate for partial years?", data.get("mta_prorate", "Yes"),
+                        "Yes (default) / No — e.g., 30 days/yr with 8 months: Yes → 20 days, No → 0 days")
+    add_dropdown(ws, ws.cell(row=mta_prorate_row, column=2).coordinate, DV_YES_NO)
+    tier_headers = ["From (tenure months)", "To (tenure months)", "Method", "Value"]
+    row = add_table_header(ws, row, tier_headers)
+    for t in data.get("mta_tiers", [("", "", "", "")]):
+        method_row = row
+        row = add_tier_row(ws, row, t[0], t[1], t[2], t[3])
+        add_dropdown(ws, ws.cell(row=method_row, column=3).coordinate, DV_TIER_METHOD)
+    style_cell(ws, row, 1, "↳ Add more tiers by inserting rows above this line", font=hint_font)
+    row += 1
+    style_cell(ws, row, 1, "Max Cap", font=body_font, border=thin_border)
+    style_cell(ws, row, 2, data.get("mta_max_cap", "None"), font=input_font, fill=fill_input, border=thin_border)
+    style_cell(ws, row, 3, "Days", font=body_font)
+    style_cell(ws, row, 4, "Fill if there is a maximum cap we need to adhere to", font=hint_font)
+    row += 2
+
+    # SECTION 3: Severance Cost Components
+    row = add_section_header(ws, row, "3. Severance Cost Components")
 
     if data["contract_type"] == "Fixed Term":
         remaining_row = row
@@ -157,100 +195,60 @@ def build_country_sheet(ws, name, data):
                    font=Font(name="Calibri", size=11, bold=True, color=DARK))
         row += 1
         prorate_row = row
-        row = add_input_row(ws, row, "Prorate for partial years?", comp.get("prorate", "Yes"),
-                            "Yes (default) / No — e.g., 30 days/yr with 8 months: Yes → 20 days, No → 0 days")
+        prorate_hint = (
+            "Example: The policy grants 30 days of severance per year. "
+            "If proration is applied, an employee with 8 months of tenure receives 20 days. "
+            "If not applied, the employee receives 0 days."
+        )
+        row = add_input_row(ws, row, "Prorate for partial years?", comp.get("prorate", "Yes"), prorate_hint)
         add_dropdown(ws, ws.cell(row=prorate_row, column=2).coordinate, DV_YES_NO)
         row = add_table_header(ws, row, ["From (tenure months)", "To (tenure months)", "Method", "Value"])
         for t in comp["tiers"]:
             method_row = row
             row = add_tier_row(ws, row, t[0], t[1], t[2], t[3])
             add_dropdown(ws, ws.cell(row=method_row, column=3).coordinate, DV_TIER_METHOD)
-        style_cell(ws, row, 1, "Max cap (days)", font=body_font, border=thin_border)
-        style_cell(ws, row, 2, comp.get("max_cap", "None"), font=input_font, fill=fill_input, border=thin_border)
-        row += 1
         style_cell(ws, row, 1, "↳ Add more tiers by inserting rows above this line", font=hint_font)
+        row += 1
+        style_cell(ws, row, 1, "Max Cap", font=body_font, border=thin_border)
+        style_cell(ws, row, 2, comp.get("max_cap", "None"), font=input_font, fill=fill_input, border=thin_border)
+        style_cell(ws, row, 3, "Days", font=body_font)
+        style_cell(ws, row, 4, "Fill if there is a maximum cap we need to adhere to", font=hint_font)
         row += 2
 
     style_cell(ws, row, 1, "↳ To add another component, copy a component block above and change the label",
                font=hint_font)
     row += 2
 
-    # SECTION 3: MTA Configuration (if applicable)
-    row = add_section_header(ws, row, "3. MTA Configuration (if MTA = Yes)")
-    if data["mta_default"] in ("Yes — always", "Yes — above tenure threshold"):
-        warn_font = Font(name="Calibri", size=10, italic=True, color="9A3412")
-        warn_fill = PatternFill(start_color="FFF7ED", end_color="FFF7ED", fill_type="solid")
-        style_cell(ws, row, 1, "⚠ When MTA is used, these severance days REPLACE the cost components above — they are not added together.",
-                   font=warn_font, fill=warn_fill)
-        row += 1
-        if data["mta_default"] == "Yes — above tenure threshold":
-            row = add_input_row(ws, row, "MTA applies when tenure ≥", data.get("mta_tenure_threshold", ""),
-                                "months")
-        row = add_input_row(ws, row, "Days to secure MTA (excl. notice period)", data["mta_days"],
-                            "Fixed number of days")
-        row += 1
-        style_cell(ws, row, 1, "MTA Severance Tiers", font=Font(name="Calibri", size=11, bold=True, color=DARK))
-        row += 1
-        mta_prorate_row = row
-        row = add_input_row(ws, row, "Prorate for partial years?", data.get("mta_prorate", "Yes"),
-                            "Yes (default) / No — e.g., 30 days/yr with 8 months: Yes → 20 days, No → 0 days")
-        add_dropdown(ws, ws.cell(row=mta_prorate_row, column=2).coordinate, DV_YES_NO)
-        tier_headers = ["From (tenure months)", "To (tenure months)", "Method", "Value"]
-        row = add_table_header(ws, row, tier_headers)
-        for t in data["mta_tiers"]:
-            method_row = row
-            row = add_tier_row(ws, row, t[0], t[1], t[2], t[3])
-            add_dropdown(ws, ws.cell(row=method_row, column=3).coordinate, DV_TIER_METHOD)
-        style_cell(ws, row, 1, "Max cap (days)", font=body_font, border=thin_border)
-        style_cell(ws, row, 2, data.get("mta_max_cap", "None"), font=input_font, fill=fill_input, border=thin_border)
-        row += 1
-        style_cell(ws, row, 1, "↳ Add more tiers as needed by inserting rows above", font=hint_font)
-    else:
-        style_cell(ws, row, 1, "N/A — MTA is not the default for this country", font=hint_font)
-    row += 2
-
     # SECTION 4: Vacation Payout
     row = add_section_header(ws, row, "4. Vacation Payout")
-    style_cell(ws, row, 1,
-               "For deposit sizing, we use the statutory entitlement from the EA/config — not the T&A system balance (which HR does not trust).",
-               font=hint_font)
     row += 1
     vac_enabled_row = row
     row = add_input_row(ws, row, "Pay out accrued vacation during termination?",
                         data["vacation"]["enabled"], "Yes / No")
     add_dropdown(ws, ws.cell(row=vac_enabled_row, column=2).coordinate, DV_YES_NO)
-    if data["vacation"]["enabled"] == "Yes":
-        vac_type_row = row
-        row = add_input_row(ws, row, "Statutory minimum payout type",
-                            data["vacation"]["minimum"], "All Accrued / Fixed number of days")
-        add_dropdown(ws, ws.cell(row=vac_type_row, column=2).coordinate, DV_VACATION_TYPE)
-        if data["vacation"]["minimum"] == "Fixed number of days":
-            row += 1
-            style_cell(ws, row, 1, "Vacation Payout Tiers (statutory entitlement)",
-                       font=Font(name="Calibri", size=11, bold=True, color=DARK))
-            row += 1
-            row = add_table_header(ws, row, ["From (tenure months)", "To (tenure months)", "Method", "Value"])
-            for t in data["vacation"]["tiers"]:
-                method_row = row
-                row = add_tier_row(ws, row, t[0], t[1], t[2], t[3])
-                add_dropdown(ws, ws.cell(row=method_row, column=3).coordinate, DV_TIER_METHOD)
-            style_cell(ws, row, 1, "Max cap (days)", font=body_font, border=thin_border)
-            style_cell(ws, row, 2, data["vacation"].get("max_cap", "None"),
-                       font=input_font, fill=fill_input, border=thin_border)
-            row += 1
-            style_cell(ws, row, 1, "↳ Add more tiers by inserting rows above this line", font=hint_font)
-        elif data["vacation"]["minimum"] == "All Accrued":
-            row += 1
-            style_cell(ws, row, 1,
-                       "For deposit sizing: we assume worst case = full annual entitlement from the EA (prorated to tenure). Actual usage is unknown at estimation time.",
-                       font=hint_font)
+
+    vac_type_row = row
+    row = add_input_row(ws, row, "What is the minimum that needs to be paid out?",
+                        data["vacation"].get("minimum", ""),
+                        'Fill the tier table below and max cap if choosing "Fixed Number of Days"; Ignore if it is "All Accrued"')
+    add_dropdown(ws, ws.cell(row=vac_type_row, column=2).coordinate, DV_VACATION_TYPE)
+
+    row = add_table_header(ws, row, ["From (tenure months)", "To (tenure months)", "Method", "Value"])
+    for t in data["vacation"].get("tiers", [("", "", "", "")]):
+        method_row = row
+        row = add_tier_row(ws, row, t[0], t[1], t[2], t[3])
+        add_dropdown(ws, ws.cell(row=method_row, column=3).coordinate, DV_TIER_METHOD)
+    style_cell(ws, row, 1, "↳ Add more tiers by inserting rows above this line", font=hint_font)
+    row += 1
+    style_cell(ws, row, 1, "Max Cap", font=body_font, border=thin_border)
+    style_cell(ws, row, 2, data["vacation"].get("max_cap", "None"),
+               font=input_font, fill=fill_input, border=thin_border)
+    style_cell(ws, row, 3, "Days", font=body_font)
+    style_cell(ws, row, 4, "Fill if there is a maximum cap we need to adhere to", font=hint_font)
     row += 2
 
     # SECTION 5: Compensation Variable Metadata
     row = add_section_header(ws, row, "5. Compensation Variable Metadata")
-    style_cell(ws, row, 1,
-               "For each compensation variable, indicate Yes/No for each column. New variables default to No.",
-               font=hint_font)
     row += 1
     cv_headers = ["Compensation Variable", "Included in Working Notice?", "Included in Severance?",
                   "Included in Vacation Pay?"]
@@ -640,10 +638,11 @@ for i, (text, font) in enumerate(instructions):
 ph_data = {
     "country": "Philippines (PH)",
     "contract_type": "Indefinite",
-    "entity_type": None,
-    "mta_default": "No",  
-    "mta_days": None,
-    "mta_tiers": [],
+    "entity_type": "All",
+    "province": "All",
+    "mta_default": "No",
+    "mta_days": "",
+    "mta_tiers": [(0, "No Limit", "Fixed", "0")],
     "components": [
         {
             "label": "Redundancy Pay",
@@ -788,10 +787,11 @@ build_country_sheet(ws_ph, "Philippines", ph_data)
 es_data = {
     "country": "Spain (ES)",
     "contract_type": "Indefinite",
-    "entity_type": None,
+    "entity_type": "All",
+    "province": "All",
     "mta_default": "No",
-    "mta_days": None,
-    "mta_tiers": [],
+    "mta_days": "",
+    "mta_tiers": [(0, "No Limit", "Fixed", "0")],
     "components": [
         {
             "label": "Severance — Objective Dismissal (Procedente)",
@@ -924,33 +924,39 @@ build_country_sheet(ws_es, "Spain", es_data)
 # ========== TEMPLATE TAB ==========
 template_data = {
     "country": "",
-    "country_hint": "Enter country name and code, e.g., 'Germany (DE)'",
-    "contract_type": "",
-    "entity_type": None,
-    "mta_default": "No",
+    "contract_type": "Fixed Term",
+    "entity_type": "All",
+    "province": "All",
+    "mta_default": "Yes — above tenure threshold",
     "mta_days": "",
     "mta_tiers": [
+        (0, "No Limit", "Fixed", "0"),
+        ("", "", "", ""),
         ("", "", "", ""),
     ],
-    "mta_max_cap": "",
+    "mta_max_cap": "None",
     "components": [
         {
-            "label": "Redundancy Pay",
+            "label": "Redundancy Pay OR Termination w/o cause",
             "is_default": True,
+            "prorate": "Yes",
             "tiers": [
+                (0, "No Limit", "Fixed", "0"),
                 ("", "", "", ""),
                 ("", "", "", ""),
             ],
-            "max_cap": "",
+            "max_cap": "None",
         }
     ],
     "vacation": {
-        "enabled": "",
-        "minimum": "",
+        "enabled": "Yes",
+        "minimum": "Fixed number of days",
         "tiers": [
+            (0, "No Limit", "Fixed", "0"),
+            ("", "", "", ""),
             ("", "", "", ""),
         ],
-        "max_cap": "",
+        "max_cap": "None",
     },
     "comp_vars": [
         ("Gross Base Salary", "", "", ""),
@@ -960,6 +966,8 @@ template_data = {
         ("", "", "", ""),
     ],
     "notes": [
+        "",
+        "",
         "",
         "",
         "",
