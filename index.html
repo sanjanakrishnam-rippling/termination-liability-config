@@ -240,6 +240,17 @@ select:focus, input:focus { border-color: var(--accent); }
 
       <div class="form-group">
         <label>How many days of severance are offered in exchange for the MTA signature?</label>
+        <div style="margin-bottom:10px;">
+          <label class="switch" style="display:inline-flex;vertical-align:middle;">
+            <input type="checkbox" id="mta-prorate-cb" checked onchange="editState.mtaProrate=this.checked;updateJSON()">
+            <span class="track"></span>
+          </label>
+          <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+            e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
+            On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+          </div>
+        </div>
         <div id="mta-sev-tiers-container"></div>
       </div>
 
@@ -736,6 +747,8 @@ function loadCountry() {
   if (editState.vacation.minimum === "FIXED") renderVacTiers();
 
   document.getElementById("mta-days-val").value = editState.mtaDaysValue || 0;
+  if (editState.mtaProrate === undefined) editState.mtaProrate = true;
+  document.getElementById("mta-prorate-cb").checked = editState.mtaProrate;
   renderMtaSevTiers();
 
   updateJSON();
@@ -775,6 +788,7 @@ function buildJSON() {
         return tier;
       })
     };
+    json.mta.severance_for_signature.prorate_partial_years = editState.mtaProrate !== false;
     if (editState.mtaMaxDays != null) json.mta.severance_for_signature.max_days = editState.mtaMaxDays;
   }
 

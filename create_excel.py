@@ -191,6 +191,10 @@ def build_country_sheet(ws, name, data):
         row += 1
         style_cell(ws, row, 1, "MTA Severance Tiers", font=Font(name="Calibri", size=11, bold=True, color=DARK))
         row += 1
+        mta_prorate_row = row
+        row = add_input_row(ws, row, "Prorate for partial years?", data.get("mta_prorate", "Yes"),
+                            "Yes (default) / No — e.g., 30 days/yr with 8 months: Yes → 20 days, No → 0 days")
+        add_dropdown(ws, ws.cell(row=mta_prorate_row, column=2).coordinate, DV_YES_NO)
         tier_headers = ["From (tenure months)", "To (tenure months)", "Method", "Value"]
         row = add_table_header(ws, row, tier_headers)
         for t in data["mta_tiers"]:
