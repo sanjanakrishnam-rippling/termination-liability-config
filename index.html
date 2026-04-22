@@ -282,18 +282,6 @@ select:focus, input:focus { border-color: var(--accent); }
     <div id="sev-mta-note" style="display:none;margin-bottom:16px;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:12px;color:#9a3412;">
       These cost components only apply when MTA is not used for the employee. If MTA applies, the severance above is used instead.
     </div>
-    <div id="remaining-contract-toggle" style="display:none;margin-bottom:16px;">
-      <div class="toggle-row" id="remaining-contract-row" style="cursor:pointer;">
-        <div>
-          <div class="t-label">Use remaining days on contract as severance?</div>
-          <div class="t-sub">If enabled, severance = contract end date minus termination date. The tier table below is ignored.</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="remaining-contract-cb"><span class="track"></span></label>
-      </div>
-      <div id="remaining-contract-info" style="display:none;margin-top:12px;padding:12px 16px;background:#e8f5e9;border-radius:8px;font-size:13px;color:#2e7d32;">
-        Severance will be calculated as: <strong>contract end date − termination date</strong>
-      </div>
-    </div>
     <div id="components-wrapper">
       <div id="components-container"></div>
       <button class="add-btn" id="add-comp-btn" style="margin-top: 4px;">+ Add component</button>
@@ -444,9 +432,12 @@ function toggleCV(idx, field) {
 
 function renderComponents() {
   const container = document.getElementById("components-container");
+  const isFixedTerm = document.getElementById("contract-type").value === "FIXED_TERM";
   container.innerHTML = editState.components.map((c, i) => {
     if (!c.tiers) c.tiers = [{ from: 0, to: null, method: "per_year", daysPerYear: 0, days: null }];
     if (c.prorate === undefined) c.prorate = true;
+    if (c.useRemainingContractDays === undefined) c.useRemainingContractDays = false;
+    const useRemaining = c.useRemainingContractDays && isFixedTerm;
     return `
     <div class="comp-card" id="comp-${i}">
       <div class="comp-header">
@@ -456,44 +447,76 @@ function renderComponents() {
         </div>
       </div>
 
-      <div class="form-row" style="margin-bottom:14px;">
-        <div class="form-group">
-          <label>Max cap (days)</label>
-          <input type="number" value="${c.maxDays ?? ''}" placeholder="No max" style="max-width:140px;"
-            onchange="editState.components[${i}].maxDays=this.value===''?null:+this.value;updateJSON()">
+      ${isFixedTerm ? `
+      <div style="margin-bottom:14px;padding:12px 16px;background:#f0f7ff;border:1px solid #dbeafe;border-radius:8px;">
+        <div class="toggle-row" id="comp-remaining-row-${i}" style="cursor:pointer;">
+          <div>
+            <div class="t-label">Use remaining days on contract as severance?</div>
+            <div class="t-sub">If enabled, severance = contract end date − termination date. The tier table below is ignored.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="comp-remaining-cb-${i}" ${useRemaining ? 'checked' : ''}><span class="track"></span></label>
         </div>
-        <div class="form-group" style="flex:none;padding-top:22px;">
-          <label class="switch" style="display:inline-flex;vertical-align:middle;">
-            <input type="checkbox" ${c.prorate ? 'checked' : ''} onchange="editState.components[${i}].prorate=this.checked;updateJSON()">
-            <span class="track"></span>
-          </label>
-          <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
-            e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
-            On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+        ${useRemaining ? `<div style="margin-top:10px;padding:10px 14px;background:#e8f5e9;border-radius:6px;font-size:13px;color:#2e7d32;">Severance for this component will be: <strong>contract end date − termination date</strong></div>` : ''}
+      </div>` : ''}
+
+      <div id="comp-tiers-section-${i}" style="${useRemaining ? 'display:none;' : ''}">
+        <div class="form-row" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label>Max cap (days)</label>
+            <input type="number" value="${c.maxDays ?? ''}" placeholder="No max" style="max-width:140px;"
+              onchange="editState.components[${i}].maxDays=this.value===''?null:+this.value;updateJSON()">
+          </div>
+          <div class="form-group" style="flex:none;padding-top:22px;">
+            <label class="switch" style="display:inline-flex;vertical-align:middle;">
+              <input type="checkbox" ${c.prorate ? 'checked' : ''} onchange="editState.components[${i}].prorate=this.checked;updateJSON()">
+              <span class="track"></span>
+            </label>
+            <span style="font-size:13px;font-weight:500;margin-left:8px;">Prorate for partial years</span>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;line-height:1.5;">
+              e.g., if rule is 30 days/yr and employee has 8 months tenure:<br>
+              On → 30 × 8/12 = <b>20 days</b>&nbsp;&nbsp;|&nbsp;&nbsp;Off → 0 completed years = <b>0 days</b>
+            </div>
           </div>
         </div>
-      </div>
 
-      <table class="tier-table">
-        <thead><tr><th>From (tenure months)</th><th>To (tenure months)</th><th>Method</th><th>Value</th><th></th></tr></thead>
-        <tbody>${c.tiers.map((t, ti) => `<tr>
-          <td><input value="${t.from}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].from=+this.value;updateJSON()"></td>
-          <td><input value="${t.to === null ? 'No limit' : t.to}" style="width:90px;" onchange="editState.components[${i}].tiers[${ti}].to=this.value==='No limit'?null:+this.value;updateJSON()"></td>
-          <td><select style="width:150px;" onchange="switchTierMethod(${i},${ti},this.value)">
-            <option value="fixed" ${t.method==='fixed'?'selected':''}>Fixed</option>
-            <option value="per_year" ${t.method==='per_year'?'selected':''}>Per year of service</option>
-          </select></td>
-          <td>${t.method === 'fixed'
-            ? `<input value="${t.days ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].days=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days</span>`
-            : `<input value="${t.daysPerYear ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].daysPerYear=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days per year of service</span>`
-          }</td>
-          <td>${c.tiers.length > 1 ? `<button class="remove-btn" onclick="removeTier(${i},${ti})">✕</button>` : ''}</td>
-        </tr>`).join("")}</tbody>
-      </table>
-      <button class="add-btn" style="font-size:12px;" onclick="addCompTier(${i})">+ Add tier</button>
+        <table class="tier-table">
+          <thead><tr><th>From (tenure months)</th><th>To (tenure months)</th><th>Method</th><th>Value</th><th></th></tr></thead>
+          <tbody>${c.tiers.map((t, ti) => `<tr>
+            <td><input value="${t.from}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].from=+this.value;updateJSON()"></td>
+            <td><input value="${t.to === null ? 'No limit' : t.to}" style="width:90px;" onchange="editState.components[${i}].tiers[${ti}].to=this.value==='No limit'?null:+this.value;updateJSON()"></td>
+            <td><select style="width:150px;" onchange="switchTierMethod(${i},${ti},this.value)">
+              <option value="fixed" ${t.method==='fixed'?'selected':''}>Fixed</option>
+              <option value="per_year" ${t.method==='per_year'?'selected':''}>Per year of service</option>
+            </select></td>
+            <td>${t.method === 'fixed'
+              ? `<input value="${t.days ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].days=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days</span>`
+              : `<input value="${t.daysPerYear ?? 0}" style="width:70px;" onchange="editState.components[${i}].tiers[${ti}].daysPerYear=+this.value;updateJSON()"> <span style="font-size:11px;color:var(--text-secondary);">days per year of service</span>`
+            }</td>
+            <td>${c.tiers.length > 1 ? `<button class="remove-btn" onclick="removeTier(${i},${ti})">✕</button>` : ''}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+        <button class="add-btn" style="font-size:12px;" onclick="addCompTier(${i})">+ Add tier</button>
+      </div>
     </div>`;
   }).join("");
+
+  if (isFixedTerm) {
+    editState.components.forEach(function(c, i) {
+      var cb = document.getElementById("comp-remaining-cb-" + i);
+      if (!cb) return;
+      cb.addEventListener("change", function() {
+        editState.components[i].useRemainingContractDays = this.checked;
+        renderComponents();
+        updateJSON();
+      });
+      var row = document.getElementById("comp-remaining-row-" + i);
+      row.addEventListener("click", function(e) {
+        if (e.target.closest(".switch")) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+    });
+  }
 }
 
 function switchTierMethod(ci, ti, method) {
@@ -677,19 +700,11 @@ function addVacTier() {
 }
 
 // ===================== REMAINING CONTRACT DAYS =====================
-function handleRemainingContractToggle(cb, stateKey, infoId, wrapperId) {
-  var checked = cb.checked;
-  editState[stateKey] = checked;
-  document.getElementById(infoId).style.display = checked ? "" : "none";
-  document.getElementById(wrapperId).style.display = checked ? "none" : "";
-  updateJSON();
-}
-
-document.getElementById("remaining-contract-cb").addEventListener("change", function() {
-  handleRemainingContractToggle(this, "useRemainingContractDays", "remaining-contract-info", "components-wrapper");
-});
 document.getElementById("mta-remaining-contract-cb").addEventListener("change", function() {
-  handleRemainingContractToggle(this, "mtaUseRemainingContractDays", "mta-remaining-contract-info", "mta-tiers-wrapper");
+  editState.mtaUseRemainingContractDays = this.checked;
+  document.getElementById("mta-remaining-contract-info").style.display = this.checked ? "" : "none";
+  document.getElementById("mta-tiers-wrapper").style.display = this.checked ? "none" : "";
+  updateJSON();
 });
 
 function setupRowToggle(rowId, cbId) {
@@ -700,34 +715,26 @@ function setupRowToggle(rowId, cbId) {
     cb.dispatchEvent(new Event("change"));
   });
 }
-setupRowToggle("remaining-contract-row", "remaining-contract-cb");
 setupRowToggle("mta-remaining-contract-row", "mta-remaining-contract-cb");
 
 function updateRemainingContractToggle() {
   var isFixedTerm = document.getElementById("contract-type").value === "FIXED_TERM";
 
-  document.getElementById("remaining-contract-toggle").style.display = isFixedTerm ? "" : "none";
   document.getElementById("mta-remaining-contract-toggle").style.display = isFixedTerm ? "" : "none";
 
   if (!isFixedTerm) {
-    editState.useRemainingContractDays = false;
-    document.getElementById("remaining-contract-cb").checked = false;
-    document.getElementById("remaining-contract-info").style.display = "none";
-    document.getElementById("components-wrapper").style.display = "";
+    editState.components.forEach(function(c) { c.useRemainingContractDays = false; });
 
     editState.mtaUseRemainingContractDays = false;
     document.getElementById("mta-remaining-contract-cb").checked = false;
     document.getElementById("mta-remaining-contract-info").style.display = "none";
     document.getElementById("mta-tiers-wrapper").style.display = "";
   } else {
-    document.getElementById("remaining-contract-cb").checked = editState.useRemainingContractDays || false;
-    document.getElementById("remaining-contract-info").style.display = editState.useRemainingContractDays ? "" : "none";
-    document.getElementById("components-wrapper").style.display = editState.useRemainingContractDays ? "none" : "";
-
     document.getElementById("mta-remaining-contract-cb").checked = editState.mtaUseRemainingContractDays || false;
     document.getElementById("mta-remaining-contract-info").style.display = editState.mtaUseRemainingContractDays ? "" : "none";
     document.getElementById("mta-tiers-wrapper").style.display = editState.mtaUseRemainingContractDays ? "none" : "";
   }
+  renderComponents();
 }
 
 // ===================== ADD COMPONENT =====================
@@ -735,7 +742,7 @@ document.getElementById("add-comp-btn").addEventListener("click", function() {
   compCounter++;
   editState.components.push({
     key: "custom_" + compCounter, label: "New Component", isDefault: false,
-    minYearsOfService: null, minDays: null, maxDays: null,
+    minYearsOfService: null, minDays: null, maxDays: null, useRemainingContractDays: false,
     tiers: [{ from: 0, to: null, method: "per_year", daysPerYear: 0, days: null }]
   });
   renderComponents();
@@ -806,9 +813,9 @@ function buildJSON() {
     country_code: state.country,
     contract_types: [document.getElementById("contract-type").value],
     mta: { is_default: editState.mta },
-    use_remaining_contract_days: editState.useRemainingContractDays || false,
     cost_components: editState.components.map(c => {
       const obj = { key: c.key, label: c.label };
+      obj.use_remaining_contract_days = c.useRemainingContractDays || false;
       if (c.maxDays != null) obj.max_days = c.maxDays;
       obj.prorate_partial_years = c.prorate !== false;
       obj.tiers = (c.tiers || []).map(t => {
